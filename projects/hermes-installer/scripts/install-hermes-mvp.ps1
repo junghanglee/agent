@@ -79,19 +79,40 @@ try {
 
     $officialInstallUrl = 'https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.ps1'
     $installScript = Invoke-RestMethod -Uri $officialInstallUrl -UseBasicParsing
-    Invoke-Expression $installScript
 
-    Write-Step 'Refreshing PATH for this PowerShell session'
+    Write-Host 'Running official installer with -SkipSetup to avoid blocking on the interactive setup wizard.'
+    $officialInstaller = [scriptblock]::Create($installScript)
+    & $officialInstaller -SkipSetup
+    if ($LASTEXITCODE -ne 0) {
+        throw "Official Hermes installer failed with exit code $LASTEXITCODE"
+    }
+
+    Write-Step 'Refreshing PATH and Hermes environment for this PowerShell session'
     $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
     $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
     $env:Path = "$userPath;$machinePath;$env:Path"
+    $env:HERMES_HOME = [Environment]::GetEnvironmentVariable('HERMES_HOME', 'User')
+    if (-not $env:HERMES_HOME) {
+        $env:HERMES_HOME = Join-Path $env:LOCALAPPDATA 'hermes'
+    }
 
     Write-Step 'Checking Hermes command'
     $hermesCmd = Get-Command hermes -ErrorAction SilentlyContinue
+    $hermesExe = $null
     if ($hermesCmd) {
-        Write-Ok "Hermes command found: $($hermesCmd.Source)"
+        $hermesExe = $hermesCmd.Source
+    } else {
+        $fallbackHermesExe = Join-Path $env:HERMES_HOME 'hermes-agent\venv\Scripts\hermes.exe'
+        if (Test-Path $fallbackHermesExe) {
+            $hermesExe = $fallbackHermesExe
+            Write-WarnMsg 'Hermes command is not visible in this PowerShell PATH yet, so using the direct installed path for verification.'
+        }
+    }
+
+    if ($hermesExe) {
+        Write-Ok "Hermes executable found: $hermesExe"
         try {
-            hermes --version
+            & $hermesExe --version
         } catch {
             Write-WarnMsg 'Hermes version check failed, but Hermes may still be installed.'
             Write-Host $_
@@ -104,28 +125,34 @@ try {
     }
 
     Write-Step 'Running Hermes doctor when available'
-    if (Get-Command hermes -ErrorAction SilentlyContinue) {
+    if ($hermesExe) {
         try {
-            hermes doctor
+            & $hermesExe doctor
         } catch {
             Write-WarnMsg 'hermes doctor failed. Check the log file.'
             Write-Host $_
         }
     } else {
-        Write-WarnMsg 'Skipping hermes doctor because hermes is not in PATH yet.'
+        Write-WarnMsg 'Skipping hermes doctor because Hermes executable was not found.'
     }
 
     Write-Step 'Next steps'
-    Write-Host '1. Connect an LLM provider:'
+    Write-Host '1. Open a new PowerShell window, then verify Hermes:'
+    Write-Host '   hermes --version' -ForegroundColor White
+    Write-Host ''
+    Write-Host '2. Finish missing setup items only:'
+    Write-Host '   hermes setup --quick' -ForegroundColor White
+    Write-Host ''
+    Write-Host '3. Connect an LLM provider:'
     Write-Host '   hermes model' -ForegroundColor White
     Write-Host ''
-    Write-Host '2. Start Hermes:'
+    Write-Host '4. Start Hermes:'
     Write-Host '   hermes' -ForegroundColor White
     Write-Host ''
-    Write-Host '3. Optional messaging gateway setup:'
+    Write-Host '5. Optional messaging gateway setup:'
     Write-Host '   hermes gateway setup' -ForegroundColor White
     Write-Host ''
-    Write-Host '4. Optional skills:'
+    Write-Host '6. Optional skills:'
     Write-Host '   hermes skills' -ForegroundColor White
     Write-Host ''
     Write-Host 'If something fails, share this log file:'
