@@ -1,0 +1,506 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CUSTOMER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  PENDING
+  SUSPENDED
+  DELETED
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum Platform {
+  WINDOWS
+  MACOS
+  IOS
+  ANDROID
+  WEB
+}
+
+enum ReleaseStatus {
+  DRAFT
+  PUBLISHED
+  ROLLED_BACK
+  ARCHIVED
+}
+
+enum PurchaseStatus {
+  PENDING
+  PAID
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum InstallCodeStatus {
+  PENDING
+  ACTIVE
+  USED
+  EXPIRED
+  REVOKED
+}
+
+enum LicenseStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+  SUSPENDED
+}
+
+enum WalletStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum CreditTransactionType {
+  CHARGE
+  GRANT_INITIAL
+  USAGE_DEDUCTION
+  REFUND
+  MANUAL_ADJUSTMENT
+}
+
+enum ProviderStatus {
+  ACTIVE
+  WARNING
+  CRITICAL
+  DISABLED
+}
+
+enum SkillBillingType {
+  ONE_TIME
+  SUBSCRIPTION
+  FREE
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  HIDDEN
+  DELETED
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_CUSTOMER
+  CLOSED
+}
+
+enum SenderType {
+  USER
+  ADMIN
+  SYSTEM
+}
+
+model User {
+  id                 String              @id @default(cuid())
+  email              String              @unique
+  name               String
+  phone              String?
+  passwordHash       String?
+  role               UserRole            @default(CUSTOMER)
+  status             UserStatus          @default(ACTIVE)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  lastLoginAt        DateTime?
+  purchases          Purchase[]
+  installCodes       InstallCode[]
+  licenses           License[]
+  deviceActivations  DeviceActivation[]
+  creditWallet       CreditWallet?
+  creditTransactions CreditTransaction[]
+  usageEvents        UsageEvent[]
+  communityPosts     CommunityPost[]
+  communityComments  CommunityComment[]
+  supportTickets     SupportTicket[]
+
+  @@index([status])
+}
+
+model AdminUser {
+  id             String          @id @default(cuid())
+  email          String          @unique
+  name           String
+  passwordHash   String?
+  role           UserRole        @default(ADMIN)
+  status         UserStatus      @default(ACTIVE)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  uploadedFiles  InstallerFile[]
+  supportTickets SupportTicket[]
+  auditLogs      AuditLog[]
+}
+
+model AgentProduct {
+  id                 String              @id @default(cuid())
+  slug               String              @unique
+  name               String
+  shortDescription   String
+  description        String
+  category           String
+  purposeTags        String              @default("[]")
+  skillLevel         String
+  supportedPlatforms String              @default("[]")
+  price              Decimal             @default(0)
+  status             ProductStatus       @default(DRAFT)
+  thumbnailUrl       String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  releases           AgentRelease[]
+  purchases          Purchase[]
+  licenses           License[]
+  usageEvents        UsageEvent[]
+  communityPosts     CommunityPost[]
+  compatibleSkills   SkillProductAgent[]
+
+  @@index([category])
+  @@index([status])
+}
+
+model AgentRelease {
+  id             String        @id @default(cuid())
+  agentProductId String
+  platform       Platform
+  version        String
+  releaseNotes   String
+  installerFileId String?
+  isLatest       Boolean       @default(false)
+  isRequired     Boolean       @default(false)
+  status         ReleaseStatus @default(DRAFT)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  agentProduct   AgentProduct  @relation(fields: [agentProductId], references: [id], onDelete: Cascade)
+  installerFile  InstallerFile? @relation(fields: [installerFileId], references: [id])
+
+  @@unique([agentProductId, platform, version])
+  @@index([platform, status])
+}
+
+model InstallerFile {
+  id                String         @id @default(cuid())
+  fileName          String
+  storageKey        String         @unique
+  downloadUrl       String
+  platform          Platform
+  sizeBytes         BigInt
+  sha256            String
+  uploadedByAdminId String?
+  createdAt         DateTime       @default(now())
+  uploadedByAdmin   AdminUser?     @relation(fields: [uploadedByAdminId], references: [id])
+  agentReleases     AgentRelease[]
+  skillReleases     SkillRelease[]
+}
+
+model Purchase {
+  id             String         @id @default(cuid())
+  userId         String
+  agentProductId String?
+  platform       Platform?
+  status         PurchaseStatus @default(PENDING)
+  totalAmount    Decimal        @default(0)
+  currency       String         @default("KRW")
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  user           User           @relation(fields: [userId], references: [id])
+  agentProduct   AgentProduct?  @relation(fields: [agentProductId], references: [id])
+  payments       Payment[]
+  installCodes   InstallCode[]
+  licenses       License[]
+
+  @@index([status, createdAt])
+}
+
+model Payment {
+  id           String        @id @default(cuid())
+  purchaseId   String?
+  provider     String
+  paymentKey   String?       @unique
+  amount       Decimal       @default(0)
+  currency     String        @default("KRW")
+  status       PaymentStatus @default(PENDING)
+  paidAt       DateTime?
+  cancelledAt  DateTime?
+  rawData      String?
+  createdAt    DateTime      @default(now())
+  purchase     Purchase?     @relation(fields: [purchaseId], references: [id])
+  transactions CreditTransaction[]
+}
+
+model InstallCode {
+  id              String            @id @default(cuid())
+  purchaseId      String
+  userId          String
+  code            String            @unique
+  status          InstallCodeStatus @default(PENDING)
+  maxActivations  Int               @default(1)
+  usedActivations Int               @default(0)
+  expiresAt       DateTime?
+  createdAt       DateTime          @default(now())
+  usedAt          DateTime?
+  revokedAt       DateTime?
+  purchase        Purchase          @relation(fields: [purchaseId], references: [id])
+  user            User              @relation(fields: [userId], references: [id])
+  license         License?
+}
+
+model License {
+  id                 String             @id @default(cuid())
+  userId             String
+  agentProductId     String
+  purchaseId         String
+  installCodeId      String             @unique
+  status             LicenseStatus      @default(ACTIVE)
+  startsAt           DateTime           @default(now())
+  endsAt             DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  user               User               @relation(fields: [userId], references: [id])
+  agentProduct       AgentProduct       @relation(fields: [agentProductId], references: [id])
+  purchase           Purchase           @relation(fields: [purchaseId], references: [id])
+  installCode        InstallCode        @relation(fields: [installCodeId], references: [id])
+  deviceActivations  DeviceActivation[]
+  usageEvents        UsageEvent[]
+}
+
+model DeviceActivation {
+  id          String        @id @default(cuid())
+  licenseId   String
+  userId      String
+  deviceId    String
+  platform    Platform
+  deviceName  String?
+  activatedAt DateTime      @default(now())
+  lastSeenAt  DateTime?
+  status      LicenseStatus @default(ACTIVE)
+  license     License       @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id])
+
+  @@unique([licenseId, deviceId])
+}
+
+model CreditWallet {
+  id           String              @id @default(cuid())
+  userId       String              @unique
+  balanceUsd   Decimal             @default(0)
+  status       WalletStatus        @default(ACTIVE)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  user         User                @relation(fields: [userId], references: [id])
+  transactions CreditTransaction[]
+}
+
+model CreditTransaction {
+  id               String                @id @default(cuid())
+  walletId         String
+  userId           String
+  type             CreditTransactionType
+  amountUsd        Decimal
+  reason           String
+  relatedPaymentId String?
+  createdAt        DateTime              @default(now())
+  wallet           CreditWallet          @relation(fields: [walletId], references: [id])
+  user             User                  @relation(fields: [userId], references: [id])
+  relatedPayment   Payment?              @relation(fields: [relatedPaymentId], references: [id])
+}
+
+model UsageEvent {
+  id             String        @id @default(cuid())
+  userId         String
+  agentProductId String?
+  licenseId      String?
+  providerId     String?
+  modelId        String?
+  requestId      String        @unique
+  inputTokens    Int           @default(0)
+  outputTokens   Int           @default(0)
+  totalTokens    Int           @default(0)
+  costUsd        Decimal       @default(0)
+  chargedUsd     Decimal       @default(0)
+  status         String        @default("completed")
+  createdAt      DateTime      @default(now())
+  user           User          @relation(fields: [userId], references: [id])
+  agentProduct   AgentProduct? @relation(fields: [agentProductId], references: [id])
+  license        License?      @relation(fields: [licenseId], references: [id])
+  provider       LLMProvider?  @relation(fields: [providerId], references: [id])
+  model          LLMModel?     @relation(fields: [modelId], references: [id])
+
+  @@index([createdAt])
+}
+
+model LLMProvider {
+  id        String         @id @default(cuid())
+  name      String         @unique
+  baseUrl   String
+  status    ProviderStatus @default(ACTIVE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  accounts  LLMAccount[]
+  models    LLMModel[]
+  usageEvents UsageEvent[]
+}
+
+model LLMAccount {
+  id               String         @id @default(cuid())
+  providerId       String
+  name             String
+  apiKeyEncrypted  String
+  monthlyLimitUsd  Decimal        @default(0)
+  usedThisMonthUsd Decimal        @default(0)
+  status           ProviderStatus @default(ACTIVE)
+  priority         Int            @default(100)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  provider         LLMProvider    @relation(fields: [providerId], references: [id], onDelete: Cascade)
+}
+
+model LLMModel {
+  id                   String         @id @default(cuid())
+  providerId           String
+  modelName            String
+  displayName          String
+  inputCostPer1M       Decimal        @default(0)
+  outputCostPer1M      Decimal        @default(0)
+  saleInputPricePer1M  Decimal        @default(0)
+  saleOutputPricePer1M Decimal        @default(0)
+  status               ProviderStatus @default(ACTIVE)
+  provider             LLMProvider    @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  usageEvents          UsageEvent[]
+
+  @@unique([providerId, modelName])
+}
+
+model LLMRoutingPolicy {
+  id                 String         @id @default(cuid())
+  name               String         @unique
+  strategy           String
+  allowedProviderIds String         @default("[]")
+  allowedModelIds    String         @default("[]")
+  status             ProviderStatus @default(ACTIVE)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+}
+
+model SkillProduct {
+  id               String              @id @default(cuid())
+  slug             String              @unique
+  name             String
+  description      String
+  price            Decimal             @default(0)
+  billingType      SkillBillingType    @default(ONE_TIME)
+  status           ProductStatus       @default(DRAFT)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  compatibleAgents SkillProductAgent[]
+  releases         SkillRelease[]
+}
+
+model SkillProductAgent {
+  skillProductId String
+  agentProductId String
+  skillProduct   SkillProduct @relation(fields: [skillProductId], references: [id], onDelete: Cascade)
+  agentProduct   AgentProduct @relation(fields: [agentProductId], references: [id], onDelete: Cascade)
+
+  @@id([skillProductId, agentProductId])
+}
+
+model SkillRelease {
+  id             String        @id @default(cuid())
+  skillProductId String
+  version        String
+  fileId         String?
+  releaseNotes   String
+  isLatest       Boolean       @default(false)
+  status         ReleaseStatus @default(DRAFT)
+  createdAt      DateTime      @default(now())
+  skillProduct   SkillProduct  @relation(fields: [skillProductId], references: [id], onDelete: Cascade)
+  file           InstallerFile? @relation(fields: [fileId], references: [id])
+}
+
+model CommunityPost {
+  id             String             @id @default(cuid())
+  userId         String
+  agentProductId String?
+  title          String
+  body           String
+  status         ContentStatus      @default(PUBLISHED)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  user           User               @relation(fields: [userId], references: [id])
+  agentProduct   AgentProduct?      @relation(fields: [agentProductId], references: [id])
+  comments       CommunityComment[]
+}
+
+model CommunityComment {
+  id        String        @id @default(cuid())
+  postId    String
+  userId    String
+  body      String
+  status    ContentStatus @default(PUBLISHED)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id])
+}
+
+model SupportTicket {
+  id              String        @id @default(cuid())
+  userId          String
+  category        String
+  subject         String
+  status          TicketStatus  @default(OPEN)
+  assignedAdminId String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  closedAt        DateTime?
+  user            User          @relation(fields: [userId], references: [id])
+  assignedAdmin   AdminUser?    @relation(fields: [assignedAdminId], references: [id])
+  messages        ChatMessage[]
+}
+
+model ChatMessage {
+  id         String        @id @default(cuid())
+  ticketId   String
+  senderType SenderType
+  senderId   String
+  message    String
+  createdAt  DateTime      @default(now())
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id          String     @id @default(cuid())
+  adminUserId String?
+  action      String
+  entityType  String
+  entityId    String?
+  beforeData  String?
+  afterData   String?
+  ipAddress   String?
+  createdAt   DateTime   @default(now())
+  adminUser   AdminUser? @relation(fields: [adminUserId], references: [id])
+}
