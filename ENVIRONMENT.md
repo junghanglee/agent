@@ -7,7 +7,8 @@
 - npm: 설치됨
 - Git: 설치됨
 - VS Code: 설치됨
-- Python: 일부 명령 확인 필요
+- Python 3.12: 설치됨
+- GitHub CLI: 설치됨, 단 CLI 로그인은 미완료
 
 ## GitHub
 
