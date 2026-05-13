@@ -1,5 +1,6 @@
 import { StatusBadge } from '@/components/admin/status-badge'
 import { ProductArchiveButton, ProductCreateButton, ProductEditButton } from '@/components/admin/product-actions'
+import { requireAdminSession } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
 import { formatKrw, statusToBadge } from '@/lib/admin-format'
 import { Eye, Monitor, Apple, Smartphone, Globe } from 'lucide-react'
@@ -23,6 +24,8 @@ function PlatformIcon({ platform }: { platform: string }) {
 }
 
 export default async function ProductsPage() {
+  await requireAdminSession()
+
   const products = await prisma.agentProduct.findMany({
     orderBy: { createdAt: 'desc' },
     include: {

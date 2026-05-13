@@ -1,7 +1,11 @@
+import { assertAdminApiSession } from '@/lib/admin-auth'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 export async function GET() {
+  const authError = await assertAdminApiSession()
+  if (authError) return authError
+
   const [
     users,
     agentProducts,

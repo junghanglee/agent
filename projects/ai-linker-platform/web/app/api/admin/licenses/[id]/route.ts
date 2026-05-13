@@ -1,3 +1,4 @@
+import { assertAdminApiSession } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
 import { updateLicenseSchema } from '@/lib/admin-validation'
 import { fail, ok, serializeForJson, validationFail } from '@/lib/api-response'
@@ -5,6 +6,9 @@ import { fail, ok, serializeForJson, validationFail } from '@/lib/api-response'
 type Params = { params: Promise<{ id: string }> }
 
 export async function PATCH(request: Request, { params }: Params) {
+  const authError = await assertAdminApiSession()
+  if (authError) return authError
+
   const { id } = await params
   const parsed = updateLicenseSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return validationFail(parsed.error)
@@ -22,6 +26,9 @@ export async function PATCH(request: Request, { params }: Params) {
 }
 
 export async function DELETE(_request: Request, { params }: Params) {
+  const authError = await assertAdminApiSession()
+  if (authError) return authError
+
   const { id } = await params
 
   try {

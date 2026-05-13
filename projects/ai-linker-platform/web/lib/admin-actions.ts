@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { requireAdminSession } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
 import {
   createProductSchema,
@@ -30,6 +31,8 @@ function optionalDateString(value: FormDataEntryValue | null) {
 }
 
 export async function createProductAction(formData: FormData) {
+  await requireAdminSession()
+
   const parsed = createProductSchema.safeParse({
     slug: formData.get('slug'),
     name: formData.get('name'),
@@ -58,6 +61,8 @@ export async function createProductAction(formData: FormData) {
 }
 
 export async function updateProductAction(formData: FormData) {
+  await requireAdminSession()
+
   const id = String(formData.get('id') ?? '')
   if (!id) throw new Error('상품 ID가 필요합니다.')
 
@@ -91,6 +96,8 @@ export async function updateProductAction(formData: FormData) {
 }
 
 export async function archiveProductAction(formData: FormData) {
+  await requireAdminSession()
+
   const id = String(formData.get('id') ?? '')
   if (!id) throw new Error('상품 ID가 필요합니다.')
   await prisma.agentProduct.update({ where: { id }, data: { status: 'ARCHIVED' } })
@@ -98,6 +105,8 @@ export async function archiveProductAction(formData: FormData) {
 }
 
 export async function createReleaseAction(formData: FormData) {
+  await requireAdminSession()
+
   const parsed = createReleaseSchema.safeParse({
     agentProductId: formData.get('agentProductId'),
     platform: formData.get('platform'),
@@ -140,6 +149,8 @@ export async function createReleaseAction(formData: FormData) {
 }
 
 export async function updateReleaseAction(formData: FormData) {
+  await requireAdminSession()
+
   const id = String(formData.get('id') ?? '')
   if (!id) throw new Error('릴리즈 ID가 필요합니다.')
 
@@ -177,6 +188,8 @@ export async function updateReleaseAction(formData: FormData) {
 }
 
 export async function archiveReleaseAction(formData: FormData) {
+  await requireAdminSession()
+
   const id = String(formData.get('id') ?? '')
   if (!id) throw new Error('릴리즈 ID가 필요합니다.')
   await prisma.agentRelease.update({ where: { id }, data: { status: 'ARCHIVED', isLatest: false } })
@@ -184,6 +197,8 @@ export async function archiveReleaseAction(formData: FormData) {
 }
 
 export async function issueInstallCodeAction(formData: FormData) {
+  await requireAdminSession()
+
   const parsed = issueInstallCodeSchema.safeParse({
     purchaseId: formData.get('purchaseId'),
     maxActivations: formData.get('maxActivations') || 1,
@@ -227,6 +242,8 @@ export async function issueInstallCodeAction(formData: FormData) {
 }
 
 export async function revokeInstallCodeAction(formData: FormData) {
+  await requireAdminSession()
+
   const id = String(formData.get('id') ?? '')
   if (!id) throw new Error('설치코드 ID가 필요합니다.')
   await prisma.installCode.update({ where: { id }, data: { status: 'REVOKED', revokedAt: new Date() } })
@@ -234,6 +251,8 @@ export async function revokeInstallCodeAction(formData: FormData) {
 }
 
 export async function updateLicenseStatusAction(formData: FormData) {
+  await requireAdminSession()
+
   const id = String(formData.get('id') ?? '')
   if (!id) throw new Error('라이선스 ID가 필요합니다.')
 
@@ -245,6 +264,8 @@ export async function updateLicenseStatusAction(formData: FormData) {
 }
 
 export async function searchLicensesAction(formData: FormData) {
+  await requireAdminSession()
+
   const query = String(formData.get('q') ?? '').trim()
   redirect(query ? `/admin/licenses?q=${encodeURIComponent(query)}` : '/admin/licenses')
 }

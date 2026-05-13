@@ -1,8 +1,12 @@
+import { assertAdminApiSession } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
 import { createReleaseSchema } from '@/lib/admin-validation'
 import { fail, ok, serializeForJson, validationFail } from '@/lib/api-response'
 
 export async function GET() {
+  const authError = await assertAdminApiSession()
+  if (authError) return authError
+
   const releases = await prisma.agentRelease.findMany({
     orderBy: { createdAt: 'desc' },
     include: {
@@ -15,6 +19,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const authError = await assertAdminApiSession()
+  if (authError) return authError
+
   const parsed = createReleaseSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return validationFail(parsed.error)
 

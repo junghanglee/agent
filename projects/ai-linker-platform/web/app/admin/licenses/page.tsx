@@ -3,6 +3,7 @@ import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CopyInstallCodeButton, IssueInstallCodeButton, LicenseActivateButton, LicenseSuspendButton, RevokeInstallCodeButton } from '@/components/admin/license-actions'
 import { searchLicensesAction } from '@/lib/admin-actions'
+import { requireAdminSession } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
 import { formatDate, statusToBadge } from '@/lib/admin-format'
 import { Search, Monitor, Apple, Smartphone, Globe } from 'lucide-react'
@@ -17,6 +18,8 @@ function PlatformIcon({ platform }: { platform?: string | null }) {
 }
 
 export default async function LicensesPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  await requireAdminSession()
+
   const { q = '' } = await searchParams
   const query = q.trim()
 

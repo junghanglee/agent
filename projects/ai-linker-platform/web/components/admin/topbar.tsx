@@ -1,6 +1,7 @@
 'use client'
 
 import { Bell, Search, ChevronDown } from 'lucide-react'
+import { adminLogoutAction } from '@/lib/admin-auth-actions'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
@@ -13,7 +14,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
-export function AdminTopbar() {
+export function AdminTopbar({ admin }: { admin: { name: string; email: string; role: string } }) {
+  const initials = admin.name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'AD'
+
   return (
     <header className="h-14 border-b border-border bg-card flex items-center justify-between px-6 shrink-0">
       {/* Search */}
@@ -43,11 +46,11 @@ export function AdminTopbar() {
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-2 hover:bg-muted rounded-md px-2 py-1.5 transition-colors">
               <Avatar className="w-7 h-7">
-                <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">SA</AvatarFallback>
+                <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">{initials}</AvatarFallback>
               </Avatar>
               <div className="text-left hidden sm:block">
-                <p className="text-xs font-medium leading-none">슈퍼 어드민</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">admin@ailinker.io</p>
+                <p className="text-xs font-medium leading-none">{admin.name}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{admin.email}</p>
               </div>
               <ChevronDown className="w-3 h-3 text-muted-foreground" />
             </button>
@@ -58,7 +61,11 @@ export function AdminTopbar() {
             <DropdownMenuItem className="text-sm">프로필 설정</DropdownMenuItem>
             <DropdownMenuItem className="text-sm">보안</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-sm text-destructive">로그아웃</DropdownMenuItem>
+            <form action={adminLogoutAction}>
+              <DropdownMenuItem className="text-sm text-destructive" asChild>
+                <button type="submit" className="w-full">로그아웃</button>
+              </DropdownMenuItem>
+            </form>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

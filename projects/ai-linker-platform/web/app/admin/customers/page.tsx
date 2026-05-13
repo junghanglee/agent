@@ -2,12 +2,15 @@ import { StatusBadge } from '@/components/admin/status-badge'
 import { Search, Filter, UserPlus, ChevronDown } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { requireAdminSession } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
 import { formatDate, formatKrw, formatUsd, statusToBadge } from '@/lib/admin-format'
 
 export const dynamic = 'force-dynamic'
 
 export default async function CustomersPage() {
+  await requireAdminSession()
+
   const customers = await prisma.user.findMany({
     orderBy: { createdAt: 'desc' },
     include: {

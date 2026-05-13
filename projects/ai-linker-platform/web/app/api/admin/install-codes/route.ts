@@ -1,3 +1,4 @@
+import { assertAdminApiSession } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
 import { issueInstallCodeSchema } from '@/lib/admin-validation'
 import { fail, ok, serializeForJson, validationFail } from '@/lib/api-response'
@@ -8,6 +9,9 @@ function generateInstallCode() {
 }
 
 export async function GET(request: Request) {
+  const authError = await assertAdminApiSession()
+  if (authError) return authError
+
   const { searchParams } = new URL(request.url)
   const query = searchParams.get('q')?.trim()
 
@@ -34,6 +38,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const authError = await assertAdminApiSession()
+  if (authError) return authError
+
   const parsed = issueInstallCodeSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return validationFail(parsed.error)
 
