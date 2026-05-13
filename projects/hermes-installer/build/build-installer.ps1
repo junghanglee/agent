@@ -1,12 +1,8 @@
 <#
-Builds the InStep Hermes installer executable.
+Builds the AI Linker Hermes installer executable.
 
 Primary output:
-- dist/InStep-Hermes-Installer.exe
-
-This build uses the Windows .NET Framework C# compiler so it works even when
-Inno Setup is not installed. If Inno Setup is installed, the .iss file can be
-compiled separately for a wizard-style installer.
+- dist/AI-Linker-Hermes-Installer.exe
 #>
 
 $ErrorActionPreference = 'Stop'
@@ -15,20 +11,18 @@ $projectRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $distDir = Join-Path $projectRoot 'dist'
 $assetsDir = Join-Path $projectRoot 'assets'
 $scriptPath = Join-Path $projectRoot 'scripts\install-hermes-mvp.ps1'
-$sourcePath = Join-Path $PSScriptRoot 'InStepInstallerLauncher.cs'
-$iconPath = Join-Path $assetsDir 'instep.ico'
+$sourcePath = Join-Path $PSScriptRoot 'AILinkerInstallerLauncher.cs'
+$iconPath = Join-Path $assetsDir 'ai-linker.ico'
 $hermesBannerPath = Join-Path $assetsDir 'hermes\hermes-banner.png'
-$outPath = Join-Path $distDir 'InStep-Hermes-Installer.exe'
+$outPath = Join-Path $distDir 'AI-Linker-Hermes-Installer.exe'
 
 New-Item -ItemType Directory -Force -Path $distDir | Out-Null
+New-Item -ItemType Directory -Force -Path $assetsDir | Out-Null
 
 if (-not (Test-Path $scriptPath)) { throw "Installer script not found: $scriptPath" }
 if (-not (Test-Path $sourcePath)) { throw "Launcher source not found: $sourcePath" }
 if (-not (Test-Path $hermesBannerPath)) { throw "Hermes banner asset not found: $hermesBannerPath" }
-if (-not (Test-Path $iconPath)) {
-    Write-Host 'Icon not found. Generating icon...'
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'New-InStepIcon.ps1')
-}
+if (-not (Test-Path $iconPath)) { throw "AI Linker icon not found: $iconPath" }
 
 $candidates = @(
     "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe",
@@ -39,9 +33,9 @@ if (-not $csc) { throw 'C# compiler csc.exe was not found.' }
 
 if (Test-Path $outPath) { Remove-Item -Force $outPath }
 
-$resourceArg = "/resource:$scriptPath,InStepInstaller.Resources.install-hermes-mvp.ps1"
-$bannerResourceArg = "/resource:$hermesBannerPath,InStepInstaller.Resources.hermes-banner.png"
-$iconResourceArg = "/resource:$iconPath,InStepInstaller.Resources.instep.ico"
+$resourceArg = "/resource:$scriptPath,AILinkerInstaller.Resources.install-hermes-mvp.ps1"
+$bannerResourceArg = "/resource:$hermesBannerPath,AILinkerInstaller.Resources.hermes-banner.png"
+$iconResourceArg = "/resource:$iconPath,AILinkerInstaller.Resources.ai-linker.ico"
 $iconArg = "/win32icon:$iconPath"
 
 & $csc /nologo /target:winexe /platform:anycpu /optimize+ /reference:System.Windows.Forms.dll /reference:System.Drawing.dll $iconArg $resourceArg $bannerResourceArg $iconResourceArg "/out:$outPath" $sourcePath

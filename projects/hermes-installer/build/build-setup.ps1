@@ -1,22 +1,21 @@
 <#
-Builds the wizard-style InStep Hermes setup package with Inno Setup.
+Builds the wizard-style AI Linker Hermes setup package with Inno Setup.
 
 Outputs:
-- dist/InStep-Hermes-Installer.exe   GUI installer app
-- dist/InStep-Hermes-Setup.exe       Windows setup package
+- dist/AI-Linker-Hermes-Installer.exe   GUI installer app
+- dist/AI-Linker-Hermes-Setup.exe       Windows setup package
 #>
 
 $ErrorActionPreference = 'Stop'
 
 $projectRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $distDir = Join-Path $projectRoot 'dist'
-$issPath = Join-Path $projectRoot 'packaging\InStepHermesInstaller.iss'
-$launcherPath = Join-Path $distDir 'InStep-Hermes-Installer.exe'
-$setupPath = Join-Path $distDir 'InStep-Hermes-Setup.exe'
+$issPath = Join-Path $projectRoot 'packaging\AILinkerHermesInstaller.iss'
+$launcherPath = Join-Path $distDir 'AI-Linker-Hermes-Installer.exe'
+$setupPath = Join-Path $distDir 'AI-Linker-Hermes-Setup.exe'
 
 if (-not (Test-Path $issPath)) { throw "Inno Setup script not found: $issPath" }
 
-# Always rebuild the GUI installer first so the setup package contains the latest UX and script.
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'build-installer.ps1')
 if ($LASTEXITCODE -ne 0) { throw "build-installer.ps1 failed with exit code $LASTEXITCODE" }
 if (-not (Test-Path $launcherPath)) { throw "Launcher was not built: $launcherPath" }

@@ -1,78 +1,38 @@
-# 제품 기획서: InStep Hermes 통합 설치 인스톨러 MVP
+# 제품 기획서: AI Linker Hermes 통합 설치 인스톨러 MVP
 
-## 제품 한 줄 설명
+AI Linker는 비개발자가 Windows PC에서 AI Agent를 원스탑으로 설치할 수 있게 돕는 통합 설치 서비스입니다. 첫 MVP는 Hermes AI Agent를 대상으로 합니다.
 
-InStep은 비개발자가 Windows PC에서 AI Agent를 원스탑으로 설치할 수 있게 돕는 통합 설치 서비스입니다. 첫 MVP는 Hermes AI Agent를 사용자 입력 없이 기본 설치하는 배포용 실행파일입니다.
+## MVP 범위
 
-## 대상 사용자
+- Hermes AI Agent 공식 설치 흐름을 감싸는 초보자용 Windows 설치 마법사 제공
+- Hermes 자체 소스 수정 없이 공식 설치기를 사용
+- 기본 LLM 설정 자동 적용
+- 기본 도구/스킬 확인 및 진단 실행
+- 사용자 API 키, 메신저 토큰, OAuth 비밀값은 설치파일에 포함하지 않음
 
-### 1. 완전 초보자
+## 사용자 흐름
 
-- 터미널/PowerShell 사용 경험 거의 없음
-- 오류 메시지를 봐도 원인 파악 어려움
-- 설치 과정에서 무엇을 눌러야 하는지 안내 필요
+1. AI Linker Hermes Setup 실행
+2. GUI 마법사에서 설치 단계 확인
+3. Hermes 설치 및 기본 설정 자동 진행
+4. 진단 결과와 로그 확인
+5. 추후 API 키/메신저 연결은 별도 설정
 
-### 2. 일반 업무 사용자
+## 배포 파일
 
-- AI Agent를 업무 자동화에 쓰고 싶음
-- Telegram/Discord/Slack 같은 메신저 연결에 관심 있음
-- 복잡한 설정 파일 수정을 원하지 않음
+```text
+AI-Linker-Hermes-Setup.exe
+```
 
-### 3. 고급 사용자/운영자
+## 내부 GUI 실행파일
 
-- Hermes를 설치한 뒤 모델, 도구, 스킬을 직접 조정하고 싶음
-- 나중에 여러 Agent 설치 관리 플랫폼으로 확장 가능
+```text
+AI-Linker-Hermes-Installer.exe
+```
 
-## MVP 핵심 가치
+## 디자인 방향
 
-- 설치 명령어를 몰라도 실행 가능
-- 사용자 개입 없이 기본 설치 완료
-- 설치 전/중/후 상태를 알기 쉽게 설명
-- 실패 시 로그 파일을 남겨 상담/진단 가능
-- 공식 Hermes 설치 경로를 사용해 안정성 확보
-- API 키, 메신저 토큰, OAuth처럼 사용자 비밀값이 필요한 항목만 설치 후 선택 설정으로 분리
-
-## MVP 기능
-
-### 필수 기능
-
-- Windows용 배포 실행파일 제공: `InStep-Hermes-Installer.exe`
-- InStep 아이콘/로고 제공
-- PowerShell 실행 정책 문제 우회
-- Hermes 공식 설치 스크립트 무인 실행
-- 설치 로그 저장
-- 기본 config 자동 적용
-- 설치 완료 후 `hermes doctor` 자동 실행
-- LLM/메신저 연결은 설치 후 선택 설정으로 안내
-
-### 선택 기능
-
-- `hermes setup` 실행
-- `hermes gateway setup` 실행
-- Hermes 시작 명령 안내
-- Skill 설치 명령 안내
-
-## 비포함 기능
-
-- 자체 LLM 결제/토큰 서버
-- GUI 기반 모델 선택 화면
-- 자동 메신저 봇 생성
-- 사용자의 API 키 대리 보관
-- Hermes 소스코드 수정
-
-## 보안 원칙
-
-- API 키는 사용자 PC 내부 Hermes 설정에만 저장
-- 설치 프로그램은 API 키를 외부 서버로 전송하지 않음
-- 로그에는 비밀키를 남기지 않는 방향으로 설계
-- 외부 스크립트는 Hermes 공식 저장소 URL만 사용
-
-## 성공 기준
-
-MVP 성공 기준은 다음과 같습니다.
-
-1. Windows PC에서 더블클릭으로 설치 시작 가능
-2. Hermes 설치 완료 여부를 확인 가능
-3. 설치 실패 시 로그 파일 확보 가능
-4. 사용자가 `hermes model`로 LLM 연결 단계까지 진입 가능
-5. README만 보고도 초보자가 재시도 가능
+- Inno Setup은 안정적인 기본 설치 UI만 담당
+- AI Linker GUI 런처가 브랜드 경험과 단계 안내를 담당
+- 좌측 단계 영역은 카드형 디자인으로 겹침을 방지
+- 본문 텍스트는 짧고 명확하게 유지
