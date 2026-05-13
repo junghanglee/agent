@@ -17,12 +17,14 @@ $assetsDir = Join-Path $projectRoot 'assets'
 $scriptPath = Join-Path $projectRoot 'scripts\install-hermes-mvp.ps1'
 $sourcePath = Join-Path $PSScriptRoot 'InStepInstallerLauncher.cs'
 $iconPath = Join-Path $assetsDir 'instep.ico'
+$hermesBannerPath = Join-Path $assetsDir 'hermes\hermes-banner.png'
 $outPath = Join-Path $distDir 'InStep-Hermes-Installer.exe'
 
 New-Item -ItemType Directory -Force -Path $distDir | Out-Null
 
 if (-not (Test-Path $scriptPath)) { throw "Installer script not found: $scriptPath" }
 if (-not (Test-Path $sourcePath)) { throw "Launcher source not found: $sourcePath" }
+if (-not (Test-Path $hermesBannerPath)) { throw "Hermes banner asset not found: $hermesBannerPath" }
 if (-not (Test-Path $iconPath)) {
     Write-Host 'Icon not found. Generating icon...'
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'New-InStepIcon.ps1')
@@ -38,9 +40,11 @@ if (-not $csc) { throw 'C# compiler csc.exe was not found.' }
 if (Test-Path $outPath) { Remove-Item -Force $outPath }
 
 $resourceArg = "/resource:$scriptPath,InStepInstaller.Resources.install-hermes-mvp.ps1"
+$bannerResourceArg = "/resource:$hermesBannerPath,InStepInstaller.Resources.hermes-banner.png"
+$iconResourceArg = "/resource:$iconPath,InStepInstaller.Resources.instep.ico"
 $iconArg = "/win32icon:$iconPath"
 
-& $csc /nologo /target:exe /platform:anycpu /optimize+ $iconArg $resourceArg "/out:$outPath" $sourcePath
+& $csc /nologo /target:winexe /platform:anycpu /optimize+ /reference:System.Windows.Forms.dll /reference:System.Drawing.dll $iconArg $resourceArg $bannerResourceArg $iconResourceArg "/out:$outPath" $sourcePath
 if ($LASTEXITCODE -ne 0) { throw "csc.exe failed with exit code $LASTEXITCODE" }
 
 Write-Host "Built: $outPath"
