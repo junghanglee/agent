@@ -8,7 +8,7 @@ AppId={{8F9C0E01-3BE9-4D24-8E95-INSTEP000001}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher={#AppPublisher}
-DefaultDirName={autopf}\InStep\Hermes Installer
+DefaultDirName={localappdata}\Programs\InStep\Hermes Installer
 DefaultGroupName=InStep
 DisableProgramGroupPage=yes
 OutputDir=..\dist
@@ -17,14 +17,27 @@ Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 SetupIconFile=..\assets\instep.ico
-WizardImageFile=..\assets\wizard\welcome.bmp
-WizardSmallImageFile=..\assets\wizard\small.bmp
 UninstallDisplayIcon={app}\instep.ico
 PrivilegesRequired=lowest
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
 SetupLogging=yes
+DisableWelcomePage=no
+DisableFinishedPage=no
 
 [Languages]
 Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
+Name: "english"; MessagesFile: "compiler:Default.isl"
+
+[Messages]
+korean.WelcomeLabel1=InStep Hermes AI Agent 설치 마법사에 오신 것을 환영합니다
+korean.WelcomeLabel2=이 설치 프로그램은 Hermes AI Agent를 생성하고, LLM 두뇌 연결과 메신저 연결 준비까지 안내합니다.%n%n계속하려면 [다음]을 클릭하세요.
+korean.FinishedHeadingLabel=InStep Hermes 설치 준비 완료
+korean.FinishedLabel=설치 마법사가 완료되었습니다. 선택하면 InStep Hermes 설치 마법사를 바로 실행합니다.
+english.WelcomeLabel1=Welcome to the InStep Hermes AI Agent Setup Wizard
+english.WelcomeLabel2=This setup prepares the Hermes AI Agent installer and guides Agent creation, LLM brain connection, and messenger connection readiness.%n%nClick Next to continue.
+english.FinishedHeadingLabel=InStep Hermes setup is ready
+english.FinishedLabel=Setup has finished preparing InStep Hermes. You can launch the installer now.
 
 [Files]
 Source: "..\dist\InStep-Hermes-Installer.exe"; DestDir: "{app}"; Flags: ignoreversion
@@ -37,10 +50,12 @@ Name: "{group}\InStep Hermes Installer"; Filename: "{app}\{#AppExeName}"; IconFi
 Name: "{userdesktop}\InStep Hermes Installer"; Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\instep.ico"; Tasks: desktopicon
 
 [Tasks]
-Name: "desktopicon"; Description: "바탕화면 바로가기 만들기"; GroupDescription: "추가 옵션:"; Flags: checkedonce
+Name: "desktopicon"; Description: "바탕화면 바로가기 만들기"; GroupDescription: "추가 옵션:"; Flags: checkedonce; Languages: korean
+Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional options:"; Flags: checkedonce; Languages: english
 
 [Run]
-Filename: "{app}\{#AppExeName}"; Description: "InStep Hermes 설치 마법사 실행"; Flags: postinstall skipifsilent nowait
+Filename: "{app}\{#AppExeName}"; Description: "InStep Hermes 설치 마법사 실행"; Flags: postinstall skipifsilent nowait; Languages: korean
+Filename: "{app}\{#AppExeName}"; Description: "Launch InStep Hermes Installer"; Flags: postinstall skipifsilent nowait; Languages: english
 
 [Code]
 var
@@ -49,10 +64,7 @@ var
 
 procedure InitializeWizard;
 begin
-  WizardForm.Caption := 'InStep - Hermes AI Agent 설치 마법사';
-  WizardForm.WelcomeLabel1.Caption := 'InStep Hermes AI Agent 설치 마법사';
-  WizardForm.WelcomeLabel2.Caption :=
-    'Hermes AI Agent를 생성하고, LLM 두뇌 연결과 메신저 연결 준비까지 안내합니다.';
+  WizardForm.Caption := 'InStep - Hermes AI Agent Setup';
 
   StepPage := CreateCustomPage(wpWelcome, '설치 여정', 'InStep이 Hermes AI Agent를 설치하는 3단계 흐름입니다.');
   StepMemo := TMemo.Create(StepPage);

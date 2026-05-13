@@ -1,16 +1,31 @@
 # InStep Hermes Installer Build
 
-## Build output
+## Build outputs
 
-Current distributable executable:
+Current distributable files:
 
 ```text
+projects/hermes-installer/dist/InStep-Hermes-Setup.exe
 projects/hermes-installer/dist/InStep-Hermes-Installer.exe
+```
+
+Recommended file for normal users:
+
+```text
+InStep-Hermes-Setup.exe
 ```
 
 The `dist/` directory is ignored by Git because it contains generated build output.
 
-## Build command
+## Build commands
+
+Build the final setup package:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "projects\hermes-installer\build\build-setup.ps1"
+```
+
+Build only the GUI installer executable:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "projects\hermes-installer\build\build-installer.ps1"
@@ -43,12 +58,18 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File <extracted-script>
 
 ## Inno Setup packaging
 
-Inno Setup is not required for the current single-file launcher build.
+The final setup package is built with Inno Setup.
 
-For a wizard-style setup package later, compile:
+Install Inno Setup if needed:
 
-```text
-packaging/InStepHermesInstaller.iss
+```powershell
+winget install --id JRSoftware.InnoSetup -e --accept-package-agreements --accept-source-agreements
+```
+
+Then run:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "projects\hermes-installer\build\build-setup.ps1"
 ```
 
 Expected output:
@@ -56,3 +77,11 @@ Expected output:
 ```text
 projects/hermes-installer/dist/InStep-Hermes-Setup.exe
 ```
+
+The setup package installs per-user under:
+
+```text
+%LOCALAPPDATA%\Programs\InStep\Hermes Installer
+```
+
+This avoids requiring administrator privileges on normal Windows PCs.
