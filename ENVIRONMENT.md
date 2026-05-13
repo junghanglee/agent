@@ -8,7 +8,7 @@
 - Git: 설치됨
 - VS Code: 설치됨
 - Python 3.12: 설치됨
-- GitHub CLI: 설치됨, 단 CLI 로그인은 미완료
+- GitHub CLI: 설치됨, `junghanglee` 계정으로 로그인 완료
 
 ## GitHub
 
