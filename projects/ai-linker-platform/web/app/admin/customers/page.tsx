@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button'
 import { prisma } from '@/lib/prisma'
 import { formatDate, formatKrw, formatUsd, statusToBadge } from '@/lib/admin-format'
 
+export const dynamic = 'force-dynamic'
+
 export default async function CustomersPage() {
   const customers = await prisma.user.findMany({
     orderBy: { createdAt: 'desc' },

@@ -7,6 +7,8 @@ import { prisma } from '@/lib/prisma'
 import { formatDate, statusToBadge } from '@/lib/admin-format'
 import { Search, Monitor, Apple, Smartphone, Globe } from 'lucide-react'
 
+export const dynamic = 'force-dynamic'
+
 function PlatformIcon({ platform }: { platform?: string | null }) {
   if (platform === 'WINDOWS') return <Monitor className="w-3.5 h-3.5 text-blue-500 mx-auto" />
   if (platform === 'MACOS') return <Apple className="w-3.5 h-3.5 text-gray-500 mx-auto" />

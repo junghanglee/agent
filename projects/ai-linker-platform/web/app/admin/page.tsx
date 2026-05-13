@@ -16,6 +16,8 @@ import {
   MessageCircle,
 } from 'lucide-react'
 
+export const dynamic = 'force-dynamic'
+
 const todayStart = () => {
   const date = new Date()
   date.setHours(0, 0, 0, 0)

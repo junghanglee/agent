@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { formatBytes, formatDate, statusToBadge } from '@/lib/admin-format'
 import { Download, Globe, EyeOff, Star } from 'lucide-react'
 
+export const dynamic = 'force-dynamic'
+
 export default async function ReleasesPage() {
   const [releases, products] = await Promise.all([
     prisma.agentRelease.findMany({

@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -183,19 +183,19 @@ model AgentProduct {
 }
 
 model AgentRelease {
-  id             String        @id @default(cuid())
-  agentProductId String
-  platform       Platform
-  version        String
-  releaseNotes   String
+  id              String         @id @default(cuid())
+  agentProductId  String
+  platform        Platform
+  version         String
+  releaseNotes    String
   installerFileId String?
-  isLatest       Boolean       @default(false)
-  isRequired     Boolean       @default(false)
-  status         ReleaseStatus @default(DRAFT)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  agentProduct   AgentProduct  @relation(fields: [agentProductId], references: [id], onDelete: Cascade)
-  installerFile  InstallerFile? @relation(fields: [installerFileId], references: [id])
+  isLatest        Boolean        @default(false)
+  isRequired      Boolean        @default(false)
+  status          ReleaseStatus  @default(DRAFT)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  agentProduct    AgentProduct   @relation(fields: [agentProductId], references: [id], onDelete: Cascade)
+  installerFile   InstallerFile? @relation(fields: [installerFileId], references: [id])
 
   @@unique([agentProductId, platform, version])
   @@index([platform, status])
@@ -269,22 +269,22 @@ model InstallCode {
 }
 
 model License {
-  id                 String             @id @default(cuid())
-  userId             String
-  agentProductId     String
-  purchaseId         String
-  installCodeId      String             @unique
-  status             LicenseStatus      @default(ACTIVE)
-  startsAt           DateTime           @default(now())
-  endsAt             DateTime?
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-  user               User               @relation(fields: [userId], references: [id])
-  agentProduct       AgentProduct       @relation(fields: [agentProductId], references: [id])
-  purchase           Purchase           @relation(fields: [purchaseId], references: [id])
-  installCode        InstallCode        @relation(fields: [installCodeId], references: [id])
-  deviceActivations  DeviceActivation[]
-  usageEvents        UsageEvent[]
+  id                String             @id @default(cuid())
+  userId            String
+  agentProductId    String
+  purchaseId        String
+  installCodeId     String             @unique
+  status            LicenseStatus      @default(ACTIVE)
+  startsAt          DateTime           @default(now())
+  endsAt            DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  user              User               @relation(fields: [userId], references: [id])
+  agentProduct      AgentProduct       @relation(fields: [agentProductId], references: [id])
+  purchase          Purchase           @relation(fields: [purchaseId], references: [id])
+  installCode       InstallCode        @relation(fields: [installCodeId], references: [id])
+  deviceActivations DeviceActivation[]
+  usageEvents       UsageEvent[]
 }
 
 model DeviceActivation {
@@ -338,10 +338,8 @@ model UsageEvent {
   requestId      String        @unique
   inputTokens    Int           @default(0)
   outputTokens   Int           @default(0)
-  totalTokens    Int           @default(0)
   costUsd        Decimal       @default(0)
   chargedUsd     Decimal       @default(0)
-  status         String        @default("completed")
   createdAt      DateTime      @default(now())
   user           User          @relation(fields: [userId], references: [id])
   agentProduct   AgentProduct? @relation(fields: [agentProductId], references: [id])
@@ -350,18 +348,19 @@ model UsageEvent {
   model          LLMModel?     @relation(fields: [modelId], references: [id])
 
   @@index([createdAt])
+  @@index([userId, createdAt])
 }
 
 model LLMProvider {
-  id        String         @id @default(cuid())
-  name      String         @unique
-  baseUrl   String
-  status    ProviderStatus @default(ACTIVE)
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
-  accounts  LLMAccount[]
-  models    LLMModel[]
-  usageEvents UsageEvent[]
+  id              String             @id @default(cuid())
+  name            String
+  type            String
+  status          ProviderStatus     @default(ACTIVE)
+  createdAt       DateTime           @default(now())
+  accounts        LLMAccount[]
+  models          LLMModel[]
+  usageEvents     UsageEvent[]
+  routingPolicies LLMRoutingPolicy[]
 }
 
 model LLMAccount {
@@ -375,57 +374,58 @@ model LLMAccount {
   priority         Int            @default(100)
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
-  provider         LLMProvider    @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  provider         LLMProvider    @relation(fields: [providerId], references: [id])
 }
 
 model LLMModel {
-  id                   String         @id @default(cuid())
+  id                   String        @id @default(cuid())
   providerId           String
   modelName            String
   displayName          String
-  inputCostPer1M       Decimal        @default(0)
-  outputCostPer1M      Decimal        @default(0)
-  saleInputPricePer1M  Decimal        @default(0)
-  saleOutputPricePer1M Decimal        @default(0)
+  inputCostPer1M       Decimal       @default(0)
+  outputCostPer1M      Decimal       @default(0)
+  saleInputPricePer1M  Decimal       @default(0)
+  saleOutputPricePer1M Decimal       @default(0)
   status               ProviderStatus @default(ACTIVE)
-  provider             LLMProvider    @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  provider             LLMProvider   @relation(fields: [providerId], references: [id])
   usageEvents          UsageEvent[]
-
-  @@unique([providerId, modelName])
 }
 
 model LLMRoutingPolicy {
-  id                 String         @id @default(cuid())
-  name               String         @unique
+  id                 String        @id @default(cuid())
+  name               String
   strategy           String
-  allowedProviderIds String         @default("[]")
-  allowedModelIds    String         @default("[]")
+  allowedProviderIds String        @default("[]")
+  allowedModelIds    String        @default("[]")
   status             ProviderStatus @default(ACTIVE)
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  providerId         String?
+  provider           LLMProvider?  @relation(fields: [providerId], references: [id])
 }
 
 model SkillProduct {
-  id               String              @id @default(cuid())
-  slug             String              @unique
-  name             String
-  description      String
-  price            Decimal             @default(0)
-  billingType      SkillBillingType    @default(ONE_TIME)
-  status           ProductStatus       @default(DRAFT)
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
-  compatibleAgents SkillProductAgent[]
-  releases         SkillRelease[]
+  id                String              @id @default(cuid())
+  slug              String              @unique
+  name              String
+  description       String
+  price             Decimal             @default(0)
+  billingType       SkillBillingType     @default(ONE_TIME)
+  status            ProductStatus        @default(DRAFT)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  compatibleAgents  SkillProductAgent[]
+  releases          SkillRelease[]
 }
 
 model SkillProductAgent {
+  id             String       @id @default(cuid())
   skillProductId String
   agentProductId String
   skillProduct   SkillProduct @relation(fields: [skillProductId], references: [id], onDelete: Cascade)
   agentProduct   AgentProduct @relation(fields: [agentProductId], references: [id], onDelete: Cascade)
 
-  @@id([skillProductId, agentProductId])
+  @@unique([skillProductId, agentProductId])
 }
 
 model SkillRelease {
@@ -437,21 +437,22 @@ model SkillRelease {
   isLatest       Boolean       @default(false)
   status         ReleaseStatus @default(DRAFT)
   createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
   skillProduct   SkillProduct  @relation(fields: [skillProductId], references: [id], onDelete: Cascade)
   file           InstallerFile? @relation(fields: [fileId], references: [id])
 }
 
 model CommunityPost {
-  id             String             @id @default(cuid())
+  id             String        @id @default(cuid())
   userId         String
   agentProductId String?
   title          String
   body           String
-  status         ContentStatus      @default(PUBLISHED)
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
-  user           User               @relation(fields: [userId], references: [id])
-  agentProduct   AgentProduct?      @relation(fields: [agentProductId], references: [id])
+  status         ContentStatus @default(PUBLISHED)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  user           User          @relation(fields: [userId], references: [id])
+  agentProduct   AgentProduct? @relation(fields: [agentProductId], references: [id])
   comments       CommunityComment[]
 }
 
@@ -493,7 +494,7 @@ model ChatMessage {
 }
 
 model AuditLog {
-  id          String     @id @default(cuid())
+  id          String    @id @default(cuid())
   adminUserId String?
   action      String
   entityType  String
@@ -501,6 +502,6 @@ model AuditLog {
   beforeData  String?
   afterData   String?
   ipAddress   String?
-  createdAt   DateTime   @default(now())
+  createdAt   DateTime  @default(now())
   adminUser   AdminUser? @relation(fields: [adminUserId], references: [id])
 }

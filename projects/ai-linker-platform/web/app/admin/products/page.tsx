@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { formatKrw, statusToBadge } from '@/lib/admin-format'
 import { Eye, Monitor, Apple, Smartphone, Globe } from 'lucide-react'
 
+export const dynamic = 'force-dynamic'
+
 function parseJsonArray(value: string) {
   try {
     const parsed = JSON.parse(value)
