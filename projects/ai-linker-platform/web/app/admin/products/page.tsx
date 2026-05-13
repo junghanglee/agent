@@ -1,8 +1,8 @@
 import { StatusBadge } from '@/components/admin/status-badge'
-import { Button } from '@/components/ui/button'
+import { ProductArchiveButton, ProductCreateButton, ProductEditButton } from '@/components/admin/product-actions'
 import { prisma } from '@/lib/prisma'
 import { formatKrw, statusToBadge } from '@/lib/admin-format'
-import { Plus, Edit2, Eye, Monitor, Apple, Smartphone, Globe } from 'lucide-react'
+import { Eye, Monitor, Apple, Smartphone, Globe } from 'lucide-react'
 
 function parseJsonArray(value: string) {
   try {
@@ -33,12 +33,9 @@ export default async function ProductsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-foreground">상품관리</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">AI Agent 상품 {products.length}개 — DB 실데이터</p>
+          <p className="text-sm text-muted-foreground mt-0.5">AI Agent 상품 {products.length}개 — 추가/수정 가능</p>
         </div>
-        <Button size="sm" className="gap-1.5" disabled title="Gate 4에서 CRUD 연결">
-          <Plus className="w-3.5 h-3.5" />
-          상품 추가
-        </Button>
+        <ProductCreateButton />
       </div>
 
       <div className="bg-card rounded-lg border border-border overflow-hidden">
@@ -68,14 +65,8 @@ export default async function ProductsPage() {
                       <p className="font-medium text-foreground">{product.name}</p>
                       <p className="text-muted-foreground font-mono mt-0.5">{product.slug}</p>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-[11px] font-medium">{product.category}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {tags.map((tag) => <span key={tag} className="bg-muted text-muted-foreground px-1.5 py-0.5 rounded text-[10px]">{tag}</span>)}
-                      </div>
-                    </td>
+                    <td className="px-4 py-3"><span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-[11px] font-medium">{product.category}</span></td>
+                    <td className="px-4 py-3"><div className="flex flex-wrap gap-1">{tags.map((tag) => <span key={tag} className="bg-muted text-muted-foreground px-1.5 py-0.5 rounded text-[10px]">{tag}</span>)}</div></td>
                     <td className="px-4 py-3"><div className="flex gap-1">{platforms.map((platform) => <PlatformIcon key={platform} platform={platform} />)}</div></td>
                     <td className="px-4 py-3 text-right font-medium">{formatKrw(product.price)}</td>
                     <td className="px-4 py-3 text-center font-medium">{product._count.purchases.toLocaleString()}</td>
@@ -83,8 +74,9 @@ export default async function ProductsPage() {
                     <td className="px-4 py-3 text-center"><StatusBadge status={statusToBadge(product.status)} /></td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">
-                        <button className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground" title="Gate 4에서 수정 연결"><Edit2 className="w-3.5 h-3.5" /></button>
+                        <ProductEditButton product={{ id: product.id, slug: product.slug, name: product.name, shortDescription: product.shortDescription, description: product.description, category: product.category, purposeTags: tags, skillLevel: product.skillLevel, supportedPlatforms: platforms, price: product.price.toString(), status: product.status, thumbnailUrl: product.thumbnailUrl }} />
                         <button className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground" title="상세 보기"><Eye className="w-3.5 h-3.5" /></button>
+                        <ProductArchiveButton id={product.id} />
                       </div>
                     </td>
                   </tr>
