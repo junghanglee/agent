@@ -1,22 +1,36 @@
-import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { createProductSchema } from '@/lib/admin-validation'
+import { fail, ok, serializeForJson, validationFail } from '@/lib/api-response'
 
 export async function GET() {
   const products = await prisma.agentProduct.findMany({
     orderBy: { createdAt: 'desc' },
     include: {
-      releases: {
-        orderBy: { createdAt: 'desc' },
-        take: 3,
-      },
-      _count: {
-        select: {
-          purchases: true,
-          licenses: true,
-        },
-      },
+      _count: { select: { releases: true, purchases: true, licenses: true } },
     },
   })
 
-  return NextResponse.json({ products })
+  return ok(serializeForJson(products))
+}
+
+export async function POST(request: Request) {
+  const parsed = createProductSchema.safeParse(await request.json().catch(() => null))
+  if (!parsed.success) return validationFail(parsed.error)
+
+  try {
+    const product = await prisma.agentProduct.create({
+      data: {
+        ...parsed.data,
+        purposeTags: JSON.stringify(parsed.data.purposeTags),
+        supportedPlatforms: JSON.stringify(parsed.data.supportedPlatforms),
+      },
+    })
+
+    return ok(serializeForJson(product), { status: 201 })
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('Unique constraint')) {
+      return fail('이미 사용 중인 상품 slug입니다.', 409)
+    }
+    return fail('상품 생성에 실패했습니다.', 500)
+  }
 }
