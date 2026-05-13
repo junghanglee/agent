@@ -12,7 +12,7 @@
 
 ## GitHub
 
-- 원격 저장소: https://github.com/choigangcheolmin-sudo/projectA.git
+- 원격 저장소: https://github.com/junghanglee/agent.git
 - 기본 브랜치: main
 
 ## 권장 추가 도구
