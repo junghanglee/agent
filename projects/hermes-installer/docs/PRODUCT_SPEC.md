@@ -1,8 +1,8 @@
-# 제품 기획서: Hermes 통합 설치 인스톨러 MVP
+# 제품 기획서: InStep Hermes 통합 설치 인스톨러 MVP
 
 ## 제품 한 줄 설명
 
-비개발자가 Windows PC에서 Hermes AI Agent를 설치하고 LLM, 메신저, Skill 설정까지 단계별로 진행할 수 있게 돕는 통합 설치 프로그램입니다.
+InStep은 비개발자가 Windows PC에서 AI Agent를 원스탑으로 설치할 수 있게 돕는 통합 설치 서비스입니다. 첫 MVP는 Hermes AI Agent를 사용자 입력 없이 기본 설치하는 배포용 실행파일입니다.
 
 ## 대상 사용자
 
@@ -26,21 +26,24 @@
 ## MVP 핵심 가치
 
 - 설치 명령어를 몰라도 실행 가능
-- 설치 전/중/후 상태를 한국어로 설명
+- 사용자 개입 없이 기본 설치 완료
+- 설치 전/중/후 상태를 알기 쉽게 설명
 - 실패 시 로그 파일을 남겨 상담/진단 가능
 - 공식 Hermes 설치 경로를 사용해 안정성 확보
-- LLM 연결과 메신저 연결을 다음 단계로 자연스럽게 안내
+- API 키, 메신저 토큰, OAuth처럼 사용자 비밀값이 필요한 항목만 설치 후 선택 설정으로 분리
 
 ## MVP 기능
 
 ### 필수 기능
 
-- Windows용 더블클릭 실행 파일 제공
+- Windows용 배포 실행파일 제공: `InStep-Hermes-Installer.exe`
+- InStep 아이콘/로고 제공
 - PowerShell 실행 정책 문제 우회
-- Hermes 공식 설치 스크립트 실행
+- Hermes 공식 설치 스크립트 무인 실행
 - 설치 로그 저장
-- 설치 완료 후 `hermes doctor` 실행
-- LLM 연결을 위한 `hermes model` 실행 안내
+- 기본 config 자동 적용
+- 설치 완료 후 `hermes doctor` 자동 실행
+- LLM/메신저 연결은 설치 후 선택 설정으로 안내
 
 ### 선택 기능
 
