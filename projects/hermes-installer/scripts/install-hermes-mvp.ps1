@@ -21,6 +21,11 @@ function Write-Step {
     Write-Host "[STEP] $Message" -ForegroundColor Cyan
 }
 
+function Write-AILinkerStage {
+    param([string]$Stage)
+    Write-Host "[AILINKER:stage:$Stage]"
+}
+
 function Write-Ok {
     param([string]$Message)
     Write-Host "[OK] $Message" -ForegroundColor Green
@@ -83,10 +88,12 @@ try {
     Write-Host ''
     Write-Host "Log file: $logFile"
 
+    Write-AILinkerStage 'environment-check'
     Write-Step 'Checking Windows and PowerShell environment'
     Write-Host "OS: $([System.Environment]::OSVersion.VersionString)"
     Write-Host "PowerShell: $($PSVersionTable.PSVersion)"
 
+    Write-AILinkerStage 'download-check'
     Write-Step 'Checking internet access to GitHub'
     try {
         $response = Invoke-WebRequest -Uri 'https://github.com' -UseBasicParsing -TimeoutSec 20
@@ -101,6 +108,7 @@ try {
         throw
     }
 
+    Write-AILinkerStage 'download-official-installer'
     Write-Step 'Running official Hermes installer in unattended mode'
     Write-Host 'Official installer URL:'
     Write-Host 'https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.ps1'
@@ -110,6 +118,7 @@ try {
     $officialInstallUrl = 'https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.ps1'
     $installScript = Invoke-RestMethod -Uri $officialInstallUrl -UseBasicParsing
 
+    Write-AILinkerStage 'install-hermes-runtime'
     Write-Host 'Running official installer with -SkipSetup to avoid interactive setup prompts.'
     $officialInstaller = [scriptblock]::Create($installScript)
     & $officialInstaller -SkipSetup
@@ -148,6 +157,7 @@ try {
     Write-Step 'Verifying Hermes version'
     Invoke-Hermes -HermesExe $hermesExe -Arguments @('--version') -Required | Out-Null
 
+    Write-AILinkerStage 'config-llm-defaults'
     Write-Step 'Applying safe default configuration'
     Write-Host 'These defaults can be changed later with hermes config or hermes setup.'
     Invoke-Hermes -HermesExe $hermesExe -Arguments @('config', 'migrate') | Out-Null
@@ -160,9 +170,11 @@ try {
     Write-Step 'Checking configuration status'
     Invoke-Hermes -HermesExe $hermesExe -Arguments @('config', 'check') | Out-Null
 
+    Write-AILinkerStage 'diagnostic-skills'
     Write-Step 'Checking bundled skills'
     Invoke-Hermes -HermesExe $hermesExe -Arguments @('skills', 'list') | Out-Null
 
+    Write-AILinkerStage 'diagnostic-doctor'
     Write-Step 'Running Hermes doctor'
     Invoke-Hermes -HermesExe $hermesExe -Arguments @('doctor') | Out-Null
 
@@ -186,6 +198,7 @@ try {
     Write-Host 'If something fails later, share this log file:'
     Write-Host "   $logFile" -ForegroundColor White
 
+    Write-AILinkerStage 'complete'
     $installSucceeded = $true
     Write-Ok 'Hermes one-stop installer finished.'
 } catch {
