@@ -1,13 +1,13 @@
 @echo off
 setlocal
 
-title Hermes AI Agent Installer MVP
+title Hermes AI Agent One-Stop Installer MVP
 
 echo ============================================================
-echo  Hermes AI Agent Installer MVP
+echo  Hermes AI Agent One-Stop Installer MVP
 echo ============================================================
 echo.
-echo This file runs the PowerShell installer script.
+echo This file runs the unattended PowerShell installer script.
 echo Do not close the window while installation is running.
 echo.
 

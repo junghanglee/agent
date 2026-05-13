@@ -1,15 +1,16 @@
 <#
-Hermes Agent Installer MVP for Windows
+Hermes Agent One-Stop Installer MVP for Windows
 
 Goal:
-- Help non-developers install Hermes Agent on Windows.
+- Install Hermes Agent from start to finish without user interaction.
 - Use the official Hermes installer without modifying Hermes itself.
+- Apply safe default configuration where possible.
 - Save install logs for troubleshooting.
-- Guide the user to LLM, gateway, and skills setup after install.
 
 Security:
 - This script does not collect API keys or passwords.
 - This script does not send user secrets to any custom server.
+- API keys, messaging tokens, and OAuth logins remain optional post-install settings.
 #>
 
 $ErrorActionPreference = 'Continue'
@@ -35,20 +36,49 @@ function Write-Fail {
     Write-Host "[ERROR] $Message" -ForegroundColor Red
 }
 
+function Invoke-Hermes {
+    param(
+        [string]$HermesExe,
+        [string[]]$Arguments,
+        [switch]$Required
+    )
+
+    if (-not $HermesExe -or -not (Test-Path $HermesExe)) {
+        $message = 'Hermes executable was not found.'
+        if ($Required) { throw $message }
+        Write-WarnMsg $message
+        return $false
+    }
+
+    Write-Host "> hermes $($Arguments -join ' ')"
+    & $HermesExe @Arguments
+    $exitCode = $LASTEXITCODE
+
+    if ($exitCode -ne 0) {
+        $message = "hermes $($Arguments -join ' ') exited with code $exitCode"
+        if ($Required) { throw $message }
+        Write-WarnMsg $message
+        return $false
+    }
+
+    return $true
+}
+
 $logRoot = Join-Path $env:USERPROFILE 'Desktop\Hermes-Installer-Logs'
 New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
 $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $logFile = Join-Path $logRoot "hermes-install-$timestamp.log"
 
 Start-Transcript -Path $logFile -Append | Out-Null
+$installSucceeded = $false
 
 try {
     Clear-Host
     Write-Host '============================================================' -ForegroundColor Magenta
-    Write-Host ' Hermes AI Agent Installer MVP' -ForegroundColor Magenta
+    Write-Host ' Hermes AI Agent One-Stop Installer MVP' -ForegroundColor Magenta
     Write-Host '============================================================' -ForegroundColor Magenta
     Write-Host ''
-    Write-Host 'This installer uses the official Hermes Agent installer.'
+    Write-Host 'This installer runs without prompts and uses safe defaults.'
     Write-Host 'Do not close this window while installation is running.'
     Write-Host ''
     Write-Host "Log file: $logFile"
@@ -71,7 +101,7 @@ try {
         throw
     }
 
-    Write-Step 'Running official Hermes installer'
+    Write-Step 'Running official Hermes installer in unattended mode'
     Write-Host 'Official installer URL:'
     Write-Host 'https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.ps1'
     Write-Host ''
@@ -80,7 +110,7 @@ try {
     $officialInstallUrl = 'https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.ps1'
     $installScript = Invoke-RestMethod -Uri $officialInstallUrl -UseBasicParsing
 
-    Write-Host 'Running official installer with -SkipSetup to avoid blocking on the interactive setup wizard.'
+    Write-Host 'Running official installer with -SkipSetup to avoid interactive setup prompts.'
     $officialInstaller = [scriptblock]::Create($installScript)
     & $officialInstaller -SkipSetup
     if ($LASTEXITCODE -ne 0) {
@@ -96,7 +126,7 @@ try {
         $env:HERMES_HOME = Join-Path $env:LOCALAPPDATA 'hermes'
     }
 
-    Write-Step 'Checking Hermes command'
+    Write-Step 'Finding Hermes executable'
     $hermesCmd = Get-Command hermes -ErrorAction SilentlyContinue
     $hermesExe = $null
     if ($hermesCmd) {
@@ -105,60 +135,59 @@ try {
         $fallbackHermesExe = Join-Path $env:HERMES_HOME 'hermes-agent\venv\Scripts\hermes.exe'
         if (Test-Path $fallbackHermesExe) {
             $hermesExe = $fallbackHermesExe
-            Write-WarnMsg 'Hermes command is not visible in this PowerShell PATH yet, so using the direct installed path for verification.'
+            Write-WarnMsg 'Hermes command is not visible in this PowerShell PATH yet, so using the direct installed path.'
         }
     }
 
-    if ($hermesExe) {
-        Write-Ok "Hermes executable found: $hermesExe"
-        try {
-            & $hermesExe --version
-        } catch {
-            Write-WarnMsg 'Hermes version check failed, but Hermes may still be installed.'
-            Write-Host $_
-        }
-    } else {
-        Write-WarnMsg 'Hermes command was not found in this PowerShell session.'
-        Write-WarnMsg 'Open a new PowerShell window and try again.'
-        Write-Host 'Expected install location:'
-        Write-Host "$env:LOCALAPPDATA\hermes"
+    if (-not $hermesExe) {
+        throw "Hermes executable was not found. Expected location: $env:LOCALAPPDATA\hermes"
     }
 
-    Write-Step 'Running Hermes doctor when available'
-    if ($hermesExe) {
-        try {
-            & $hermesExe doctor
-        } catch {
-            Write-WarnMsg 'hermes doctor failed. Check the log file.'
-            Write-Host $_
-        }
-    } else {
-        Write-WarnMsg 'Skipping hermes doctor because Hermes executable was not found.'
-    }
+    Write-Ok "Hermes executable found: $hermesExe"
 
-    Write-Step 'Next steps'
-    Write-Host '1. Open a new PowerShell window, then verify Hermes:'
-    Write-Host '   hermes --version' -ForegroundColor White
+    Write-Step 'Verifying Hermes version'
+    Invoke-Hermes -HermesExe $hermesExe -Arguments @('--version') -Required | Out-Null
+
+    Write-Step 'Applying safe default configuration'
+    Write-Host 'These defaults can be changed later with hermes config or hermes setup.'
+    Invoke-Hermes -HermesExe $hermesExe -Arguments @('config', 'migrate') | Out-Null
+    Invoke-Hermes -HermesExe $hermesExe -Arguments @('config', 'set', 'model.provider', 'auto') | Out-Null
+    Invoke-Hermes -HermesExe $hermesExe -Arguments @('config', 'set', 'model.base_url', 'https://openrouter.ai/api/v1') | Out-Null
+    Invoke-Hermes -HermesExe $hermesExe -Arguments @('config', 'set', 'model.default', 'anthropic/claude-opus-4.6') | Out-Null
+    Invoke-Hermes -HermesExe $hermesExe -Arguments @('config', 'set', 'terminal.backend', 'local') | Out-Null
+    Invoke-Hermes -HermesExe $hermesExe -Arguments @('config', 'set', 'terminal.working_dir', '.') | Out-Null
+
+    Write-Step 'Checking configuration status'
+    Invoke-Hermes -HermesExe $hermesExe -Arguments @('config', 'check') | Out-Null
+
+    Write-Step 'Checking bundled skills'
+    Invoke-Hermes -HermesExe $hermesExe -Arguments @('skills', 'list') | Out-Null
+
+    Write-Step 'Running Hermes doctor'
+    Invoke-Hermes -HermesExe $hermesExe -Arguments @('doctor') | Out-Null
+
+    Write-Step 'Installation summary'
+    Write-Ok 'Hermes base installation is complete.'
     Write-Host ''
-    Write-Host '2. Finish missing setup items only:'
-    Write-Host '   hermes setup --quick' -ForegroundColor White
+    Write-Host 'Installed with safe defaults:'
+    Write-Host "   HERMES_HOME: $env:HERMES_HOME"
+    Write-Host "   Hermes exe:  $hermesExe"
+    Write-Host '   Model provider: auto'
+    Write-Host '   Default model:  anthropic/claude-opus-4.6'
+    Write-Host '   Terminal:       local'
+    Write-Host '   Skills:         bundled skills enabled'
     Write-Host ''
-    Write-Host '3. Connect an LLM provider:'
-    Write-Host '   hermes model' -ForegroundColor White
+    Write-Host 'Optional post-install changes, only if needed:'
+    Write-Host '   hermes setup --quick      Configure missing API keys or account logins'
+    Write-Host '   hermes model              Change LLM provider/model'
+    Write-Host '   hermes gateway setup      Connect messaging platforms'
+    Write-Host '   hermes skills             Manage optional skills'
     Write-Host ''
-    Write-Host '4. Start Hermes:'
-    Write-Host '   hermes' -ForegroundColor White
-    Write-Host ''
-    Write-Host '5. Optional messaging gateway setup:'
-    Write-Host '   hermes gateway setup' -ForegroundColor White
-    Write-Host ''
-    Write-Host '6. Optional skills:'
-    Write-Host '   hermes skills' -ForegroundColor White
-    Write-Host ''
-    Write-Host 'If something fails, share this log file:'
+    Write-Host 'If something fails later, share this log file:'
     Write-Host "   $logFile" -ForegroundColor White
 
-    Write-Ok 'Hermes installer MVP finished.'
+    $installSucceeded = $true
+    Write-Ok 'Hermes one-stop installer finished.'
 } catch {
     Write-Fail 'Installation failed.'
     Write-Host $_
@@ -168,6 +197,11 @@ try {
 } finally {
     Stop-Transcript | Out-Null
     Write-Host ''
-    Write-Host 'Press any key to close this window.'
-    $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+    if ($installSucceeded) {
+        Write-Host 'This window will close automatically.'
+        exit 0
+    } else {
+        Write-Host 'Installation failed. This window will close automatically.'
+        exit 1
+    }
 }

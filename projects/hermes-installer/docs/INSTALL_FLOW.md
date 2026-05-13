@@ -6,12 +6,17 @@
 2. PowerShell 창 실행
 3. 설치 시작 안내 표시
 4. 인터넷 연결 확인
-5. Hermes 공식 설치 스크립트 실행
-6. Hermes 명령어 설치 여부 확인
-7. `hermes doctor` 진단 실행
-8. LLM 연결 안내
-9. 선택적으로 메신저/Skill 설정 안내
-10. 로그 파일 위치 안내
+5. Hermes 공식 설치 스크립트를 `-SkipSetup`으로 무인 실행
+6. 현재 세션 PATH/HERMES_HOME 자동 갱신
+7. Hermes 실행 파일 확인
+8. `hermes --version` 자동 검증
+9. `hermes config migrate` 자동 실행
+10. 안전한 기본 config 자동 적용
+11. `hermes config check` 자동 실행
+12. `hermes skills list` 자동 확인
+13. `hermes doctor` 진단 실행
+14. 로그 파일 위치 안내
+15. 성공 시 키 입력 없이 자동 종료
 
 ## 상세 흐름
 
@@ -38,7 +43,9 @@
 공식 설치 명령을 실행합니다.
 
 ```powershell
-irm https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.ps1 | iex
+$installScript = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.ps1' -UseBasicParsing
+$officialInstaller = [scriptblock]::Create($installScript)
+& $officialInstaller -SkipSetup
 ```
 
 Hermes 공식 설치기가 처리하는 항목:
@@ -63,17 +70,26 @@ hermes doctor
 - `%LOCALAPPDATA%\hermes`
 - `%LOCALAPPDATA%\hermes\hermes-agent`
 
-### 5. LLM 연결
+### 5. 기본 설정 자동 적용
 
-사용자에게 다음 선택지를 제공합니다.
-
-- 직접 API 키 입력
-- 사용자의 자체 LLM 토큰 계정 연결
-- 나중에 설정
-
-초기 MVP에서는 Hermes 기본 명령을 호출합니다.
+사용자 개입 없이 바꿀 수 있고 나중에 변경 가능한 기본값은 자동 적용합니다.
 
 ```powershell
+hermes config migrate
+hermes config set model.provider auto
+hermes config set model.base_url https://openrouter.ai/api/v1
+hermes config set model.default anthropic/claude-opus-4.6
+hermes config set terminal.backend local
+hermes config set terminal.working_dir .
+hermes config check
+```
+
+API 키, 메신저 토큰, OAuth 로그인처럼 사용자의 계정 비밀값이 필요한 항목은 설치기가 임의로 만들 수 없으므로 선택 설정으로 남깁니다.
+
+설치 후 필요 시 사용자가 실행할 수 있는 명령:
+
+```powershell
+hermes setup --quick
 hermes model
 ```
 
@@ -92,11 +108,13 @@ hermes gateway setup
 
 ### 7. Skill 설치
 
-MVP에서는 자동 설치보다 안내 중심으로 시작합니다.
+기본 번들 Skill은 공식 설치기가 동기화하며, 설치기는 상태를 자동 확인합니다.
 
 ```powershell
-hermes skills
+hermes skills list
 ```
+
+외부 Hub Skill 설치는 네트워크/신뢰/계정 설정이 필요할 수 있으므로 후속 선택 기능으로 둡니다.
 
 향후에는 추천 Skill 목록을 제공하고 선택 설치 기능을 추가합니다.
 
