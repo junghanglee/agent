@@ -28,14 +28,14 @@ export async function PATCH(request: Request, { params }: Params) {
   const parsed = updateReleaseSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return validationFail(parsed.error)
 
-  const { installerFile, installerFileId, isLatest, ...rest } = parsed.data
+  const { installerFile, installerFileId, isLatest, agentProductId, ...rest } = parsed.data
 
   try {
     const { before, release } = await prisma.$transaction(async (tx) => {
       const current = await tx.agentRelease.findUnique({ where: { id }, include: { installerFile: true } })
       if (!current) throw new Error('NOT_FOUND')
 
-      const nextProductId = rest.agentProductId ?? current.agentProductId
+      const nextProductId = agentProductId ?? current.agentProductId
       const nextPlatform = rest.platform ?? current.platform
 
       if (isLatest) {
@@ -49,6 +49,7 @@ export async function PATCH(request: Request, { params }: Params) {
         where: { id },
         data: {
           ...rest,
+          ...(agentProductId ? { agentProduct: { connect: { id: agentProductId } } } : {}),
           ...(typeof isLatest === 'boolean' ? { isLatest } : {}),
           ...(installerFile
             ? { installerFile: { create: { ...installerFile, platform: installerFile.platform ?? nextPlatform } } }

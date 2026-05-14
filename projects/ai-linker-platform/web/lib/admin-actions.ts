@@ -135,11 +135,11 @@ export async function createReleaseAction(formData: FormData) {
 
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? '릴리즈 입력값이 올바르지 않습니다.')
 
-  const { installerFile, isLatest, ...releaseData } = parsed.data
+  const { installerFile, installerFileId: _installerFileId, isLatest, agentProductId, platform, ...releaseData } = parsed.data
   const release = await prisma.$transaction(async (tx) => {
     if (isLatest) {
       await tx.agentRelease.updateMany({
-        where: { agentProductId: releaseData.agentProductId, platform: releaseData.platform },
+        where: { agentProductId, platform },
         data: { isLatest: false },
       })
     }
@@ -147,8 +147,10 @@ export async function createReleaseAction(formData: FormData) {
     return tx.agentRelease.create({
       data: {
         ...releaseData,
+        agentProduct: { connect: { id: agentProductId } },
+        platform,
         isLatest,
-        installerFile: { create: { ...installerFile!, platform: releaseData.platform } },
+        installerFile: { create: { ...installerFile!, platform } },
       },
       include: { installerFile: true },
     })
@@ -177,22 +179,36 @@ export async function updateReleaseAction(formData: FormData) {
 
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? '릴리즈 입력값이 올바르지 않습니다.')
 
-  const { isLatest, ...rest } = parsed.data
+  const { isLatest, agentProductId, installerFile, installerFileId, ...rest } = parsed.data
   const { before, release } = await prisma.$transaction(async (tx) => {
     const current = await tx.agentRelease.findUnique({ where: { id } })
     if (!current) throw new Error('릴리즈를 찾을 수 없습니다.')
 
-    const agentProductId = rest.agentProductId ?? current.agentProductId
+    const nextAgentProductId = agentProductId ?? current.agentProductId
     const platform = rest.platform ?? current.platform
 
     if (isLatest) {
       await tx.agentRelease.updateMany({
-        where: { agentProductId, platform, id: { not: id } },
+        where: { agentProductId: nextAgentProductId, platform, id: { not: id } },
         data: { isLatest: false },
       })
     }
 
-    const release = await tx.agentRelease.update({ where: { id }, data: { ...rest, isLatest } })
+    const release = await tx.agentRelease.update({
+      where: { id },
+      data: {
+        ...rest,
+        ...(agentProductId ? { agentProduct: { connect: { id: agentProductId } } } : {}),
+        ...(installerFile
+          ? { installerFile: { create: { ...installerFile, platform: installerFile.platform ?? platform } } }
+          : typeof installerFileId !== 'undefined'
+            ? installerFileId
+              ? { installerFile: { connect: { id: installerFileId } } }
+              : { installerFile: { disconnect: true } }
+            : {}),
+        isLatest,
+      },
+    })
     return { before: current, release }
   })
 

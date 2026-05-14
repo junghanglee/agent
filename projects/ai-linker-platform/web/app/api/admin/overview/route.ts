@@ -46,7 +46,7 @@ export async function GET() {
     },
     orderBy: [{ status: 'asc' }, { priority: 'asc' }],
     include: {
-      provider: { select: { name: true, baseUrl: true, status: true } },
+      provider: { select: { name: true, status: true } },
     },
   })
 

@@ -17,6 +17,7 @@ import {
   MessageSquare,
   Globe,
   Settings,
+  ShieldCheck,
   ChevronLeft,
   ChevronRight,
   Zap,
@@ -36,6 +37,7 @@ const navItems = [
   { href: '/admin/skills', label: 'Skill/컴포넌트', icon: Puzzle },
   { href: '/admin/support', label: '상담/채팅', icon: MessageSquare },
   { href: '/admin/community', label: '커뮤니티 관리', icon: Globe },
+  { href: '/admin/admin-users', label: '관리자 계정', icon: ShieldCheck },
   { href: '/admin/settings', label: '시스템 설정', icon: Settings },
 ]
 

@@ -17,10 +17,14 @@ function parseJsonArray(value: string) {
 }
 
 function PlatformIcon({ platform }: { platform: string }) {
-  if (platform === 'WINDOWS') return <Monitor className="w-3.5 h-3.5 text-blue-500" title="Windows" />
-  if (platform === 'MACOS') return <Apple className="w-3.5 h-3.5 text-gray-500" title="macOS" />
-  if (platform === 'IOS' || platform === 'ANDROID') return <Smartphone className="w-3.5 h-3.5 text-violet-500" title={platform} />
-  return <Globe className="w-3.5 h-3.5 text-cyan-500" title={platform} />
+  const label = platform === 'WINDOWS' ? 'Windows' : platform === 'MACOS' ? 'macOS' : platform
+  const icon =
+    platform === 'WINDOWS' ? <Monitor className="w-3.5 h-3.5 text-blue-500" /> :
+    platform === 'MACOS' ? <Apple className="w-3.5 h-3.5 text-gray-500" /> :
+    platform === 'IOS' || platform === 'ANDROID' ? <Smartphone className="w-3.5 h-3.5 text-violet-500" /> :
+    <Globe className="w-3.5 h-3.5 text-cyan-500" />
+
+  return <span title={label} aria-label={label}>{icon}</span>
 }
 
 export default async function ProductsPage() {

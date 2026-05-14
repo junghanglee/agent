@@ -173,7 +173,7 @@ const statusConfig: Record<TicketStatus, { label: string; color: string; icon: R
     color: "bg-amber-100 text-amber-700",
     icon: <CircleDot className="h-3 w-3" />,
   },
-  답변완료: {
+  "답변 완료": {
     label: "답변 완료",
     color: "bg-green-100 text-green-700",
     icon: <CheckCircle2 className="h-3 w-3" />,
@@ -186,7 +186,6 @@ const statusConfig: Record<TicketStatus, { label: string; color: string; icon: R
 }
 
 function getStatusConfig(status: TicketStatus) {
-  if (status === "답변 완료") return statusConfig["답변완료"]
   return statusConfig[status] ?? statusConfig["검토중"]
 }
 

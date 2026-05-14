@@ -29,13 +29,13 @@ function getSessionSecret() {
   const secret = process.env.ADMIN_SESSION_SECRET ?? process.env.AI_LINKER_ENCRYPTION_KEY
 
   if (process.env.NODE_ENV === 'production') {
-    if (isPlaceholder(secret) || secret.length < MIN_SECRET_LENGTH) {
+    if (isPlaceholder(secret) || !secret || secret.length < MIN_SECRET_LENGTH) {
       throw new Error('Production admin session secret must be set to a strong random value of at least 32 characters.')
     }
     return secret
   }
 
-  return isPlaceholder(secret) ? 'ai-linker-local-session-secret' : secret
+  return isPlaceholder(secret) || !secret ? 'ai-linker-local-session-secret' : secret
 }
 
 function getAdminPasswordHash() {
@@ -174,7 +174,9 @@ export async function requireAdminSession() {
   return session
 }
 
-export async function validateAdminLogin(email: string, password: string) {
+export type AdminLoginResult = Awaited<ReturnType<typeof prisma.adminUser.upsert>> | { error: 'rate_limited' } | null
+
+export async function validateAdminLogin(email: string, password: string): Promise<AdminLoginResult> {
   const configuredEmail = process.env.ADMIN_EMAIL ?? 'admin@ailinker.local'
   if (process.env.NODE_ENV === 'production' && configuredEmail === 'admin@ailinker.local') {
     throw new Error('Production admin email must be set with ADMIN_EMAIL.')

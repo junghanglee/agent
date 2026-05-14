@@ -32,10 +32,8 @@ export async function POST(request: NextRequest) {
         requestId,
         inputTokens,
         outputTokens,
-        totalTokens: inputTokens + outputTokens,
         costUsd,
         chargedUsd,
-        status: 'completed',
       },
     })
 

@@ -5,6 +5,8 @@ export const productStatusSchema = z.enum(['DRAFT', 'ACTIVE', 'ARCHIVED'])
 export const releaseStatusSchema = z.enum(['DRAFT', 'PUBLISHED', 'ROLLED_BACK', 'ARCHIVED'])
 export const installCodeStatusSchema = z.enum(['PENDING', 'ACTIVE', 'USED', 'EXPIRED', 'REVOKED'])
 export const licenseStatusSchema = z.enum(['ACTIVE', 'EXPIRED', 'REVOKED', 'SUSPENDED'])
+export const adminRoleSchema = z.enum(['ADMIN', 'SUPER_ADMIN'])
+export const adminUserStatusSchema = z.enum(['ACTIVE', 'PENDING', 'SUSPENDED', 'DELETED'])
 
 const stringArraySchema = z.array(z.string().trim().min(1)).default([])
 const installerFileSchema = z.object({
@@ -77,6 +79,18 @@ export const updateLicenseSchema = z.object({
   status: licenseStatusSchema.optional(),
   endsAt: z.coerce.date().optional().nullable(),
 }).refine((value) => Object.keys(value).length > 0, { message: '수정할 필드가 필요합니다.' })
+
+export const createAdminUserSchema = z.object({
+  email: z.string().trim().email().max(255),
+  name: z.string().trim().min(1).max(120),
+  password: z.string().min(8).max(128),
+  role: adminRoleSchema.default('ADMIN'),
+  status: adminUserStatusSchema.default('ACTIVE'),
+})
+
+export const updateAdminUserSchema = createAdminUserSchema.partial().refine((value) => Object.keys(value).length > 0, {
+  message: '수정할 필드가 필요합니다.',
+})
 
 export function parseJsonBody<T>(schema: z.ZodType<T>, body: unknown) {
   return schema.safeParse(body)

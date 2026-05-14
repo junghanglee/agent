@@ -23,7 +23,7 @@ export async function adminLoginAction(formData: FormData) {
     redirect('/admin/login?error=invalid')
   }
 
-  if ('error' in admin && admin.error === 'rate_limited') {
+  if ('error' in admin) {
     redirect('/admin/login?error=rate_limited')
   }
 

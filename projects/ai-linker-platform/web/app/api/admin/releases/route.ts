@@ -26,13 +26,13 @@ export async function POST(request: Request) {
   const parsed = createReleaseSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return validationFail(parsed.error)
 
-  const { installerFile, installerFileId, isLatest, ...releaseData } = parsed.data
+  const { installerFile, installerFileId, isLatest, agentProductId, platform, ...releaseData } = parsed.data
 
   try {
     const release = await prisma.$transaction(async (tx) => {
       if (isLatest) {
         await tx.agentRelease.updateMany({
-          where: { agentProductId: releaseData.agentProductId, platform: releaseData.platform },
+          where: { agentProductId, platform },
           data: { isLatest: false },
         })
       }
@@ -40,9 +40,11 @@ export async function POST(request: Request) {
       return tx.agentRelease.create({
         data: {
           ...releaseData,
+          agentProduct: { connect: { id: agentProductId } },
+          platform,
           isLatest,
           ...(installerFile
-            ? { installerFile: { create: { ...installerFile, platform: installerFile.platform ?? releaseData.platform } } }
+            ? { installerFile: { create: { ...installerFile, platform: installerFile.platform ?? platform } } }
             : installerFileId
               ? { installerFile: { connect: { id: installerFileId } } }
               : {}),
