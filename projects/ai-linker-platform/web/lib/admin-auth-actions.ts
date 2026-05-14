@@ -11,7 +11,14 @@ export async function adminLoginAction(formData: FormData) {
     redirect('/admin/login?error=missing')
   }
 
-  const admin = await validateAdminLogin(email, password)
+  let admin
+  try {
+    admin = await validateAdminLogin(email, password)
+  } catch (error) {
+    console.error('Admin login configuration error:', error)
+    redirect('/admin/login?error=config')
+  }
+
   if (!admin) {
     redirect('/admin/login?error=invalid')
   }

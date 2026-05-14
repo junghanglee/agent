@@ -5,6 +5,12 @@ import { prisma } from '@/lib/prisma'
 
 const ADMIN_SESSION_COOKIE = 'ai_linker_admin_session'
 const SESSION_TTL_MS = 1000 * 60 * 60 * 8
+const MIN_SECRET_LENGTH = 32
+const PLACEHOLDER_VALUES = new Set([
+  'replace-with-strong-random-key',
+  'replace-with-strong-random-session-secret',
+  'replace-with-sha256-password-hash',
+])
 
 export type AdminSession = {
   id: string
@@ -13,12 +19,32 @@ export type AdminSession = {
   role: 'ADMIN' | 'SUPER_ADMIN'
 }
 
+function isPlaceholder(value?: string) {
+  return !value || PLACEHOLDER_VALUES.has(value)
+}
+
 function getSessionSecret() {
-  return process.env.ADMIN_SESSION_SECRET ?? process.env.AI_LINKER_ENCRYPTION_KEY ?? 'ai-linker-local-session-secret'
+  const secret = process.env.ADMIN_SESSION_SECRET ?? process.env.AI_LINKER_ENCRYPTION_KEY
+
+  if (process.env.NODE_ENV === 'production') {
+    if (isPlaceholder(secret) || secret.length < MIN_SECRET_LENGTH) {
+      throw new Error('Production admin session secret must be set to a strong random value of at least 32 characters.')
+    }
+    return secret
+  }
+
+  return isPlaceholder(secret) ? 'ai-linker-local-session-secret' : secret
 }
 
 function getAdminPasswordHash() {
-  return process.env.ADMIN_PASSWORD_HASH ?? createHash('sha256').update(process.env.ADMIN_PASSWORD ?? 'admin1234').digest('hex')
+  const configuredHash = process.env.ADMIN_PASSWORD_HASH
+  if (configuredHash && !isPlaceholder(configuredHash)) return configuredHash
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Production admin password hash must be set with ADMIN_PASSWORD_HASH.')
+  }
+
+  return createHash('sha256').update(process.env.ADMIN_PASSWORD ?? 'admin1234').digest('hex')
 }
 
 export function hashAdminPassword(password: string) {
@@ -108,6 +134,10 @@ export async function requireAdminSession() {
 
 export async function validateAdminLogin(email: string, password: string) {
   const configuredEmail = process.env.ADMIN_EMAIL ?? 'admin@ailinker.local'
+  if (process.env.NODE_ENV === 'production' && configuredEmail === 'admin@ailinker.local') {
+    throw new Error('Production admin email must be set with ADMIN_EMAIL.')
+  }
+
   const configuredPasswordHash = getAdminPasswordHash()
   const submittedPasswordHash = hashAdminPassword(password)
 

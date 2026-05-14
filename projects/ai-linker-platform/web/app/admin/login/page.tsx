@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic'
 function errorMessage(error?: string) {
   if (error === 'missing') return '이메일과 비밀번호를 입력하세요.'
   if (error === 'invalid') return '관리자 계정 정보가 올바르지 않습니다.'
+  if (error === 'config') return '관리자 로그인 환경변수 설정이 필요합니다. 운영 배포용 비밀번호/세션 키를 확인하세요.'
   return null
 }
 
@@ -43,7 +44,7 @@ export default async function AdminLoginPage({ searchParams }: { searchParams: P
         </form>
 
         <p className="text-[11px] text-muted-foreground mt-5 leading-relaxed">
-          개발 기본값은 `.env`의 `ADMIN_EMAIL`, `ADMIN_PASSWORD` 또는 `ADMIN_PASSWORD_HASH`로 변경할 수 있습니다. 운영 배포 전에는 반드시 강한 비밀번호로 교체하세요.
+          로컬 개발에서는 `.env`의 `ADMIN_EMAIL`, `ADMIN_PASSWORD` 또는 `ADMIN_PASSWORD_HASH`로 로그인 값을 바꿀 수 있습니다. 운영 배포에서는 `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`, `ADMIN_SESSION_SECRET`을 반드시 강한 값으로 설정해야 합니다.
         </p>
       </div>
     </main>
