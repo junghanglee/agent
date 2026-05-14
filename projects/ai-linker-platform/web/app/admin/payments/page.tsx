@@ -1,7 +1,8 @@
+import { ApprovePaymentButton } from '@/components/admin/payment-actions'
 import { StatusBadge } from '@/components/admin/status-badge'
 import { StatCard } from '@/components/admin/stat-card'
 import { Input } from '@/components/ui/input'
-import { requireAdminPagePermission } from '@/lib/admin-auth'
+import { hasAdminPermission, requireAdminPagePermission } from '@/lib/admin-auth'
 import { formatDate, formatKrw, statusToBadge } from '@/lib/admin-format'
 import { prisma } from '@/lib/prisma'
 import { AlertCircle, DollarSign, RefreshCw, Search, TrendingUp } from 'lucide-react'
@@ -18,7 +19,7 @@ const monthStart = () => {
 }
 
 export default async function PaymentsPage({ searchParams }: PaymentsPageProps) {
-  await requireAdminPagePermission('PAYMENTS_READ')
+  const session = await requireAdminPagePermission('PAYMENTS_READ')
 
   const { q = '', status = '', provider = '' } = await searchParams
   const query = q.trim()
@@ -41,7 +42,7 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
       : {}),
   }
 
-  const [payments, monthPaidAggregate, monthPaidCount, refundedAggregate, failedCount, providers] = await Promise.all([
+  const [payments, monthPaidAggregate, monthPaidCount, refundedAggregate, failedCount, providers, pendingPurchases] = await Promise.all([
     prisma.payment.findMany({
       where,
       take: 100,
@@ -67,13 +68,35 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
     }),
     prisma.payment.count({ where: { status: 'FAILED', createdAt: { gte: currentMonthStart } } }),
     prisma.payment.findMany({ distinct: ['provider'], select: { provider: true }, orderBy: { provider: 'asc' } }),
+    prisma.purchase.findMany({
+      where: { status: 'PENDING' },
+      take: 100,
+      orderBy: { createdAt: 'desc' },
+      include: { user: { select: { name: true, email: true } }, agentProduct: { select: { name: true } } },
+    }),
   ])
+
+  const canManagePayments = hasAdminPermission(session, 'PAYMENTS_MANAGE')
+  const purchaseOptions = pendingPurchases.map((purchase) => ({
+    id: purchase.id,
+    label: `${purchase.user.name} · ${purchase.agentProduct?.name ?? '토큰/기타'} · ${formatKrw(purchase.totalAmount)}`,
+    amount: purchase.totalAmount,
+    currency: purchase.currency,
+    isTokenPurchase: !purchase.agentProductId,
+  }))
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-bold text-foreground">결제관리</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">실제 결제 내역 및 구독 현황</p>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-foreground">결제관리</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">실제 결제 내역 및 구독 현황</p>
+        </div>
+        {canManagePayments ? (
+          <ApprovePaymentButton purchases={purchaseOptions} />
+        ) : (
+          <div className="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">결제 승인은 슈퍼관리자 전용입니다.</div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

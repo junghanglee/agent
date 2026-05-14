@@ -9,6 +9,7 @@ export const adminRoleSchema = z.enum(['ADMIN', 'SUPER_ADMIN'])
 export const adminUserStatusSchema = z.enum(['ACTIVE', 'PENDING', 'SUSPENDED', 'DELETED'])
 export const creditAdjustmentTypeSchema = z.enum(['GRANT', 'DEDUCT'])
 export const providerStatusSchema = z.enum(['ACTIVE', 'WARNING', 'CRITICAL', 'DISABLED'])
+export const paymentProviderEventStatusSchema = z.enum(['PENDING', 'PAID', 'FAILED', 'CANCELLED', 'REFUNDED'])
 
 const stringArraySchema = z.array(z.string().trim().min(1)).default([])
 const installerFileSchema = z.object({
@@ -87,6 +88,29 @@ export const adjustCreditSchema = z.object({
   type: creditAdjustmentTypeSchema,
   amountUsd: z.coerce.number().positive().max(100000),
   reason: z.string().trim().min(2).max(500),
+})
+
+export const paymentProviderEventSchema = z.object({
+  provider: z.string().trim().min(1).max(80),
+  paymentKey: z.string().trim().min(1).max(255),
+  purchaseId: z.string().trim().min(1).optional().nullable(),
+  status: paymentProviderEventStatusSchema,
+  amount: z.coerce.number().min(0).max(1000000000),
+  currency: z.string().trim().min(3).max(8).default('KRW'),
+  paidAt: z.coerce.date().optional().nullable(),
+  cancelledAt: z.coerce.date().optional().nullable(),
+  rawData: z.unknown().optional(),
+  tokenCreditUsd: z.coerce.number().positive().max(1000000).optional().nullable(),
+})
+
+export const approvePaymentSchema = z.object({
+  provider: z.string().trim().min(1).max(80).default('manual'),
+  paymentKey: z.string().trim().min(1).max(255),
+  purchaseId: z.string().trim().min(1).optional().nullable(),
+  amount: z.coerce.number().min(0).max(1000000000),
+  currency: z.string().trim().min(3).max(8).default('KRW'),
+  tokenCreditUsd: z.coerce.number().positive().max(1000000).optional().nullable(),
+  rawData: z.unknown().optional(),
 })
 
 export const createLLMProviderSchema = z.object({

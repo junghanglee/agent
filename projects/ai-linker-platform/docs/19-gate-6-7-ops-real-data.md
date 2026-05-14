@@ -99,8 +99,48 @@ npm run build
 - `/admin/llm-pool` 화면에 계정 추가/수정/비활성화 버튼 연결
 - 모든 생성/수정/비활성화 작업 AuditLog 기록
 
+## 추가 완료: 결제 웹훅/승인 파이프라인
+
+- `PAYMENTS_MANAGE` 권한 추가
+- `SUPER_ADMIN`에게만 결제 수동 승인 허용
+- 일반 `ADMIN`은 결제 조회만 가능
+- 결제 Provider 웹훅 수신 API 추가
+  - `POST /api/payment-webhooks/[provider]`
+  - `x-ai-linker-signature` 또는 `x-webhook-signature` HMAC-SHA256 검증
+  - production에서는 `PAYMENT_WEBHOOK_SECRET` 또는 `PAYMENT_WEBHOOK_SECRET_{PROVIDER}` 필요
+  - 개발환경에서는 secret 미설정 시 테스트 웹훅 허용
+- 관리자 수동 승인 API 추가
+  - `POST /api/admin/payments/approve`
+- `/admin/payments` 화면에 수동 승인 버튼 연결
+- 공통 결제 처리 유틸 추가
+  - Payment 생성/업데이트
+  - Purchase 상태 동기화
+  - 상품 구매 결제 완료 시 InstallCode + License 자동 발급
+  - 토큰/기타 구매 결제 완료 시 CreditWallet 충전 + CreditTransaction 기록
+  - 동일 paymentKey 재수신 시 기존 Payment 갱신으로 처리
+- 수동 승인 작업은 `AuditLog(action=PAYMENT_MANUAL_APPROVE)` 기록
+
+### 웹훅 payload 공통 형식
+
+```json
+{
+  "paymentKey": "provider-transaction-id",
+  "purchaseId": "purchase-id",
+  "status": "PAID",
+  "amount": 99000,
+  "currency": "KRW",
+  "paidAt": "2026-05-14T13:00:00.000Z",
+  "tokenCreditUsd": 50
+}
+```
+
+- `paymentKey`는 provider transaction id로 unique 처리
+- `status`: `PENDING | PAID | FAILED | CANCELLED | REFUNDED`
+- 상품 구매는 `tokenCreditUsd` 없이 처리
+- 토큰 충전 구매는 `tokenCreditUsd`를 넣어야 지갑 충전 발생
+
 ## 남은 작업
 
-- 결제 Provider 실제 웹훅/승인 API 연결
+- 실제 PG사별 승인 API/Toss/Stripe payload adapter 세분화
 - 운영 차트 UX를 필요 시 클라이언트 차트 컴포넌트로 재도입
 - 실제 운영 데이터가 없는 초기 상태용 seed 데이터 보강
