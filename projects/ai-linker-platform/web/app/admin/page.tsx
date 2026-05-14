@@ -1,7 +1,7 @@
 import { StatCard } from '@/components/admin/stat-card'
 import { StatusBadge } from '@/components/admin/status-badge'
 import { DashboardCharts } from '@/components/admin/dashboard-charts'
-import { requireAdminSession } from '@/lib/admin-auth'
+import { requireAdminPagePermission } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
 import { formatKrw, formatUsd, statusToBadge } from '@/lib/admin-format'
 import {
@@ -33,7 +33,7 @@ const monthStart = () => {
 }
 
 export default async function AdminDashboard() {
-  await requireAdminSession()
+  await requireAdminPagePermission('DASHBOARD_READ')
 
   const [
     todayPayments,

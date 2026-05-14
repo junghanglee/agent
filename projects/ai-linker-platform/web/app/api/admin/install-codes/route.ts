@@ -10,7 +10,7 @@ function generateInstallCode() {
 }
 
 export async function GET(request: Request) {
-  const authError = await assertAdminApiSession()
+  const authError = await assertAdminApiSession('LICENSES_MANAGE')
   if (authError) return authError
 
   const { searchParams } = new URL(request.url)
@@ -39,7 +39,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { session, response } = await requireAdminApiSession()
+  const { session, response } = await requireAdminApiSession('LICENSES_MANAGE')
   if (response) return response
 
   const parsed = issueInstallCodeSchema.safeParse(await request.json().catch(() => null))

@@ -5,9 +5,8 @@ import { prisma } from '@/lib/prisma'
 type Params = { params: Promise<{ id: string }> }
 
 export async function GET(_request: Request, { params }: Params) {
-  const { session, response } = await requireAdminApiSession()
+  const { response } = await requireAdminApiSession('ADMIN_USERS_MANAGE')
   if (response) return response
-  if (session?.role !== 'SUPER_ADMIN') return fail('슈퍼관리자 권한이 필요합니다.', 403)
 
   const { id } = await params
   const admin = await prisma.adminUser.findUnique({

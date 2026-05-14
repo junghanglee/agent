@@ -1,18 +1,13 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireAdminSession, hashAdminPassword } from '@/lib/admin-auth'
+import { requireSuperAdminSession, hashAdminPassword } from '@/lib/admin-auth'
 import { recordAdminAudit } from '@/lib/admin-audit'
 import { createAdminUserSchema, updateAdminUserSchema } from '@/lib/admin-validation'
 import { prisma } from '@/lib/prisma'
 
-function requireSuperAdmin(role: string) {
-  if (role !== 'SUPER_ADMIN') throw new Error('슈퍼관리자 권한이 필요합니다.')
-}
-
 export async function createAdminUserAction(formData: FormData) {
-  const session = await requireAdminSession()
-  requireSuperAdmin(session.role)
+  const session = await requireSuperAdminSession()
 
   const parsed = createAdminUserSchema.safeParse({
     email: formData.get('email'),
@@ -47,8 +42,7 @@ export async function createAdminUserAction(formData: FormData) {
 }
 
 export async function updateAdminUserAction(formData: FormData) {
-  const session = await requireAdminSession()
-  requireSuperAdmin(session.role)
+  const session = await requireSuperAdminSession()
 
   const id = String(formData.get('id') ?? '')
   if (!id) throw new Error('관리자 계정 ID가 필요합니다.')

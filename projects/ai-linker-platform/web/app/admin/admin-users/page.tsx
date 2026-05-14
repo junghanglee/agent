@@ -1,12 +1,12 @@
 import { AdminUserCreateButton, AdminUserEditButton, AdminUserStatusButton } from '@/components/admin/admin-user-actions'
-import { requireAdminSession } from '@/lib/admin-auth'
+import { requireAdminPagePermission } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
 import { Activity, ShieldCheck, UserCog } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AdminUsersPage() {
-  const session = await requireAdminSession()
+  const session = await requireAdminPagePermission('ADMIN_USERS_MANAGE')
 
   if (session.role !== 'SUPER_ADMIN') {
     return (

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { ADMIN_ROLE_PERMISSIONS, type AdminRole, type AdminPermission } from '@/lib/admin-permissions'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
@@ -24,24 +25,24 @@ import {
 import { AILinkerLogo } from '@/components/brand/ai-linker-logo'
 import { useState } from 'react'
 
-const navItems = [
-  { href: '/admin', label: '대시보드', icon: LayoutDashboard },
-  { href: '/admin/customers', label: '고객관리', icon: Users },
-  { href: '/admin/products', label: '상품관리', icon: Package },
-  { href: '/admin/releases', label: '릴리즈관리', icon: GitBranch },
-  { href: '/admin/licenses', label: '설치코드/라이선스', icon: KeyRound },
-  { href: '/admin/payments', label: '결제관리', icon: CreditCard },
-  { href: '/admin/tokens', label: '토큰/크레딧', icon: Coins },
-  { href: '/admin/llm-pool', label: 'LLM 계정 Pool', icon: Server },
-  { href: '/admin/monitoring', label: '사용량 모니터링', icon: Activity },
-  { href: '/admin/skills', label: 'Skill/컴포넌트', icon: Puzzle },
-  { href: '/admin/support', label: '상담/채팅', icon: MessageSquare },
-  { href: '/admin/community', label: '커뮤니티 관리', icon: Globe },
-  { href: '/admin/admin-users', label: '관리자 계정', icon: ShieldCheck },
-  { href: '/admin/settings', label: '시스템 설정', icon: Settings },
+const navItems: Array<{ href: string; label: string; icon: React.ElementType; permission: AdminPermission }> = [
+  { href: '/admin', label: '대시보드', icon: LayoutDashboard, permission: 'DASHBOARD_READ' },
+  { href: '/admin/customers', label: '고객관리', icon: Users, permission: 'CUSTOMERS_READ' },
+  { href: '/admin/products', label: '상품관리', icon: Package, permission: 'PRODUCTS_MANAGE' },
+  { href: '/admin/releases', label: '릴리즈관리', icon: GitBranch, permission: 'RELEASES_MANAGE' },
+  { href: '/admin/licenses', label: '설치코드/라이선스', icon: KeyRound, permission: 'LICENSES_MANAGE' },
+  { href: '/admin/payments', label: '결제관리', icon: CreditCard, permission: 'PAYMENTS_READ' },
+  { href: '/admin/tokens', label: '토큰/크레딧', icon: Coins, permission: 'TOKENS_READ' },
+  { href: '/admin/llm-pool', label: 'LLM 계정 Pool', icon: Server, permission: 'LLM_POOL_READ' },
+  { href: '/admin/monitoring', label: '사용량 모니터링', icon: Activity, permission: 'MONITORING_READ' },
+  { href: '/admin/skills', label: 'Skill/컴포넌트', icon: Puzzle, permission: 'SKILLS_MANAGE' },
+  { href: '/admin/support', label: '상담/채팅', icon: MessageSquare, permission: 'SUPPORT_MANAGE' },
+  { href: '/admin/community', label: '커뮤니티 관리', icon: Globe, permission: 'COMMUNITY_MANAGE' },
+  { href: '/admin/admin-users', label: '관리자 계정', icon: ShieldCheck, permission: 'ADMIN_USERS_MANAGE' },
+  { href: '/admin/settings', label: '시스템 설정', icon: Settings, permission: 'SETTINGS_MANAGE' },
 ]
 
-export function AdminSidebar() {
+export function AdminSidebar({ role }: { role: AdminRole }) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
 
@@ -66,7 +67,7 @@ export function AdminSidebar() {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
-        {navItems.map((item) => {
+        {navItems.filter((item) => ADMIN_ROLE_PERMISSIONS[role].includes(item.permission)).map((item) => {
           const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
           return (
             <Link

@@ -1,4 +1,4 @@
-import { assertAdminApiSession, requireAdminApiSession } from '@/lib/admin-auth'
+import { requireAdminApiSession } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
 import { recordAdminAudit } from '@/lib/admin-audit'
 import { updateInstallCodeSchema } from '@/lib/admin-validation'
@@ -7,7 +7,7 @@ import { fail, ok, serializeForJson, validationFail } from '@/lib/api-response'
 type Params = { params: Promise<{ id: string }> }
 
 export async function PATCH(request: Request, { params }: Params) {
-  const { session, response } = await requireAdminApiSession()
+  const { session, response } = await requireAdminApiSession('LICENSES_MANAGE')
   if (response) return response
 
   const { id } = await params
@@ -44,7 +44,7 @@ export async function PATCH(request: Request, { params }: Params) {
 }
 
 export async function DELETE(_request: Request, { params }: Params) {
-  const { session, response } = await requireAdminApiSession()
+  const { session, response } = await requireAdminApiSession('LICENSES_MANAGE')
   if (response) return response
 
   const { id } = await params

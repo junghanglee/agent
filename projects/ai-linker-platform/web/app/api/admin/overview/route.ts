@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 export async function GET() {
-  const authError = await assertAdminApiSession()
+  const authError = await assertAdminApiSession('DASHBOARD_READ')
   if (authError) return authError
 
   const [

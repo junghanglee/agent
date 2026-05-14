@@ -5,7 +5,7 @@ import { createProductSchema } from '@/lib/admin-validation'
 import { fail, ok, serializeForJson, validationFail } from '@/lib/api-response'
 
 export async function GET() {
-  const authError = await assertAdminApiSession()
+  const authError = await assertAdminApiSession('PRODUCTS_MANAGE')
   if (authError) return authError
 
   const products = await prisma.agentProduct.findMany({
@@ -19,7 +19,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { session, response } = await requireAdminApiSession()
+  const { session, response } = await requireAdminApiSession('PRODUCTS_MANAGE')
   if (response) return response
 
   const parsed = createProductSchema.safeParse(await request.json().catch(() => null))

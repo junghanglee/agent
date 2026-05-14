@@ -5,7 +5,7 @@ import { createReleaseSchema } from '@/lib/admin-validation'
 import { fail, ok, serializeForJson, validationFail } from '@/lib/api-response'
 
 export async function GET() {
-  const authError = await assertAdminApiSession()
+  const authError = await assertAdminApiSession('RELEASES_MANAGE')
   if (authError) return authError
 
   const releases = await prisma.agentRelease.findMany({
@@ -20,7 +20,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { session, response } = await requireAdminApiSession()
+  const { session, response } = await requireAdminApiSession('RELEASES_MANAGE')
   if (response) return response
 
   const parsed = createReleaseSchema.safeParse(await request.json().catch(() => null))

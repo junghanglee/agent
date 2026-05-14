@@ -7,7 +7,7 @@ import { fail, ok, serializeForJson, validationFail } from '@/lib/api-response'
 type Params = { params: Promise<{ id: string }> }
 
 export async function GET(_request: Request, { params }: Params) {
-  const authError = await assertAdminApiSession()
+  const authError = await assertAdminApiSession('PRODUCTS_MANAGE')
   if (authError) return authError
 
   const { id } = await params
@@ -24,7 +24,7 @@ export async function GET(_request: Request, { params }: Params) {
 }
 
 export async function PATCH(request: Request, { params }: Params) {
-  const { session, response } = await requireAdminApiSession()
+  const { session, response } = await requireAdminApiSession('PRODUCTS_MANAGE')
   if (response) return response
 
   const { id } = await params
@@ -58,7 +58,7 @@ export async function PATCH(request: Request, { params }: Params) {
 }
 
 export async function DELETE(_request: Request, { params }: Params) {
-  const { session, response } = await requireAdminApiSession()
+  const { session, response } = await requireAdminApiSession('PRODUCTS_MANAGE')
   if (response) return response
 
   const { id } = await params

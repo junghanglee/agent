@@ -1,6 +1,6 @@
 import { StatusBadge } from '@/components/admin/status-badge'
 import { ReleaseArchiveButton, ReleaseCreateButton, ReleaseEditButton } from '@/components/admin/release-actions'
-import { requireAdminSession } from '@/lib/admin-auth'
+import { requireAdminPagePermission } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
 import { formatBytes, formatDate, statusToBadge } from '@/lib/admin-format'
 import { Download, Globe, EyeOff, Star } from 'lucide-react'
@@ -8,7 +8,7 @@ import { Download, Globe, EyeOff, Star } from 'lucide-react'
 export const dynamic = 'force-dynamic'
 
 export default async function ReleasesPage() {
-  await requireAdminSession()
+  await requireAdminPagePermission('RELEASES_MANAGE')
 
   const [releases, products] = await Promise.all([
     prisma.agentRelease.findMany({

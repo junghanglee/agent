@@ -2,6 +2,7 @@ import { cookies, headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createHash, createHmac, timingSafeEqual } from 'crypto'
 import { prisma } from '@/lib/prisma'
+import { ADMIN_ROLE_PERMISSIONS, type AdminPermission, type AdminRole } from '@/lib/admin-permissions'
 
 const ADMIN_SESSION_COOKIE = 'ai_linker_admin_session'
 const SESSION_TTL_MS = 1000 * 60 * 60 * 8
@@ -14,11 +15,13 @@ const PLACEHOLDER_VALUES = new Set([
   'replace-with-sha256-password-hash',
 ])
 
+export type { AdminPermission, AdminRole }
+export { ADMIN_ROLE_PERMISSIONS }
 export type AdminSession = {
   id: string
   email: string
   name: string
-  role: 'ADMIN' | 'SUPER_ADMIN'
+  role: AdminRole
 }
 
 function isPlaceholder(value?: string) {
@@ -168,10 +171,29 @@ export async function getAdminSession(): Promise<AdminSession | null> {
   }
 }
 
+export function hasAdminPermission(session: AdminSession | null, permission: AdminPermission) {
+  if (!session) return false
+  return ADMIN_ROLE_PERMISSIONS[session.role].includes(permission)
+}
+
+export function requireAdminPermission(session: AdminSession | null, permission: AdminPermission) {
+  return hasAdminPermission(session, permission)
+}
+
 export async function requireAdminSession() {
   const session = await getAdminSession()
   if (!session) redirect('/admin/login')
   return session
+}
+
+export async function requireAdminPagePermission(permission: AdminPermission) {
+  const session = await requireAdminSession()
+  if (!hasAdminPermission(session, permission)) redirect('/admin')
+  return session
+}
+
+export async function requireSuperAdminSession() {
+  return requireAdminPagePermission('ADMIN_USERS_MANAGE')
 }
 
 export type AdminLoginResult = Awaited<ReturnType<typeof prisma.adminUser.upsert>> | { error: 'rate_limited' } | null
@@ -220,20 +242,30 @@ export async function validateAdminLogin(email: string, password: string): Promi
   return admin
 }
 
-export async function assertAdminApiSession() {
+export async function assertAdminApiSession(permission?: AdminPermission) {
   const session = await getAdminSession()
   if (!session) {
     return Response.json({ ok: false, error: '관리자 로그인이 필요합니다.' }, { status: 401 })
   }
+  if (permission && !hasAdminPermission(session, permission)) {
+    return Response.json({ ok: false, error: '접근 권한이 필요합니다.' }, { status: 403 })
+  }
   return null
 }
 
-export async function requireAdminApiSession() {
+export async function requireAdminApiSession(permission?: AdminPermission) {
   const session = await getAdminSession()
   if (!session) {
     return {
       session: null,
       response: Response.json({ ok: false, error: '관리자 로그인이 필요합니다.' }, { status: 401 }),
+    }
+  }
+
+  if (permission && !hasAdminPermission(session, permission)) {
+    return {
+      session,
+      response: Response.json({ ok: false, error: '접근 권한이 필요합니다.' }, { status: 403 }),
     }
   }
 

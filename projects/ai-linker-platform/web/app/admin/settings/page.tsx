@@ -1,4 +1,5 @@
-'use client'
+import { requireAdminPagePermission } from '@/lib/admin-auth'
+
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,7 +26,8 @@ const settings = {
   ],
 }
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  await requireAdminPagePermission('SETTINGS_MANAGE')
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">

@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { ok, serializeForJson } from '@/lib/api-response'
 
 export async function GET(request: Request) {
-  const authError = await assertAdminApiSession()
+  const authError = await assertAdminApiSession('LICENSES_MANAGE')
   if (authError) return authError
 
   const { searchParams } = new URL(request.url)

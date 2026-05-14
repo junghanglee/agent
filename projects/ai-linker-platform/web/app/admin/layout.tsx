@@ -1,3 +1,4 @@
+import { AdminPageGuard } from '@/components/admin/admin-page-guard'
 import { AdminSidebar } from '@/components/admin/sidebar'
 import { AdminTopbar } from '@/components/admin/topbar'
 import { requireAdminSession } from '@/lib/admin-auth'
@@ -9,10 +10,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <AdminSidebar />
+      <AdminSidebar role={admin.role} />
       <div className="flex flex-col flex-1 overflow-hidden">
         <AdminTopbar admin={admin} />
         <main className="flex-1 overflow-y-auto p-6">
+          <AdminPageGuard role={admin.role} />
           {children}
         </main>
       </div>

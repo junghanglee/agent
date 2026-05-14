@@ -4,14 +4,9 @@ import { fail, ok, serializeForJson, validationFail } from '@/lib/api-response'
 import { createAdminUserSchema } from '@/lib/admin-validation'
 import { prisma } from '@/lib/prisma'
 
-function requireSuperAdmin(session: { role: string } | null) {
-  return session?.role === 'SUPER_ADMIN'
-}
-
 export async function GET() {
-  const { session, response } = await requireAdminApiSession()
+  const { response } = await requireAdminApiSession('ADMIN_USERS_MANAGE')
   if (response) return response
-  if (!requireSuperAdmin(session)) return fail('슈퍼관리자 권한이 필요합니다.', 403)
 
   const admins = await prisma.adminUser.findMany({
     orderBy: { createdAt: 'desc' },
@@ -31,9 +26,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { session, response } = await requireAdminApiSession()
+  const { session, response } = await requireAdminApiSession('ADMIN_USERS_MANAGE')
   if (response) return response
-  if (!requireSuperAdmin(session)) return fail('슈퍼관리자 권한이 필요합니다.', 403)
 
   const parsed = createAdminUserSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return validationFail(parsed.error)

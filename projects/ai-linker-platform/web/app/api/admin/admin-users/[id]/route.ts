@@ -6,14 +6,9 @@ import { prisma } from '@/lib/prisma'
 
 type Params = { params: Promise<{ id: string }> }
 
-function requireSuperAdmin(session: { role: string } | null) {
-  return session?.role === 'SUPER_ADMIN'
-}
-
 export async function PATCH(request: Request, { params }: Params) {
-  const { session, response } = await requireAdminApiSession()
+  const { session, response } = await requireAdminApiSession('ADMIN_USERS_MANAGE')
   if (response) return response
-  if (!requireSuperAdmin(session)) return fail('슈퍼관리자 권한이 필요합니다.', 403)
 
   const { id } = await params
   const parsed = updateAdminUserSchema.safeParse(await request.json().catch(() => null))
