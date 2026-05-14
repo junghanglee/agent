@@ -1,109 +1,148 @@
-'use client'
-
-import { useState } from 'react'
 import { StatusBadge } from '@/components/admin/status-badge'
 import { StatCard } from '@/components/admin/stat-card'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { DollarSign, TrendingUp, RefreshCw, AlertCircle, Search, Filter } from 'lucide-react'
+import { requireAdminPagePermission } from '@/lib/admin-auth'
+import { formatDate, formatKrw, statusToBadge } from '@/lib/admin-format'
+import { prisma } from '@/lib/prisma'
+import { AlertCircle, DollarSign, RefreshCw, Search, TrendingUp } from 'lucide-react'
 
-const payments = [
-  { id: 'PAY-2401', customer: '김민준', product: 'AI Writer Pro', amount: '₩89,000', provider: 'Stripe', status: 'paid' as const, paidAt: '2025-01-10 14:32' },
-  { id: 'PAY-2400', customer: '이서연', product: 'Sales Copilot', amount: '₩129,000', provider: 'Toss', status: 'paid' as const, paidAt: '2025-01-10 12:15' },
-  { id: 'PAY-2399', customer: '박도현', product: 'Token Pack 100K', amount: '₩15,000', provider: 'Stripe', status: 'pending' as const, paidAt: '2025-01-09 09:48' },
-  { id: 'PAY-2398', customer: '최수아', product: 'Data Analyst', amount: '₩99,000', provider: 'KakaoPay', status: 'paid' as const, paidAt: '2025-01-09 08:22' },
-  { id: 'PAY-2397', customer: '정예준', product: 'AI Writer Pro', amount: '₩89,000', provider: 'Stripe', status: 'refunded' as const, paidAt: '2025-01-08 17:05' },
-  { id: 'PAY-2396', customer: '윤하늘', product: 'Token Pack 50K', amount: '₩12,000', provider: 'Toss', status: 'paid' as const, paidAt: '2025-01-08 11:33' },
-  { id: 'PAY-2395', customer: '강지호', product: 'Code Helper', amount: '₩79,000', provider: 'Stripe', status: 'failed' as const, paidAt: '2025-01-07 20:18' },
-  { id: 'PAY-2394', customer: '조민서', product: 'Sales Copilot', amount: '₩129,000', provider: 'KakaoPay', status: 'paid' as const, paidAt: '2025-01-07 15:44' },
-]
+export const dynamic = 'force-dynamic'
 
-export default function PaymentsPage() {
-  const [search, setSearch] = useState('')
+type PaymentsPageProps = {
+  searchParams: Promise<{ q?: string; status?: string; provider?: string }>
+}
 
-  const filtered = payments.filter(
-    (p) => p.customer.includes(search) || p.id.toLowerCase().includes(search.toLowerCase()) || p.product.includes(search)
-  )
+const monthStart = () => {
+  const now = new Date()
+  return new Date(now.getFullYear(), now.getMonth(), 1)
+}
+
+export default async function PaymentsPage({ searchParams }: PaymentsPageProps) {
+  await requireAdminPagePermission('PAYMENTS_READ')
+
+  const { q = '', status = '', provider = '' } = await searchParams
+  const query = q.trim()
+  const currentMonthStart = monthStart()
+
+  const where = {
+    ...(status ? { status: status as never } : {}),
+    ...(provider ? { provider } : {}),
+    ...(query
+      ? {
+          OR: [
+            { id: { contains: query } },
+            { paymentKey: { contains: query } },
+            { provider: { contains: query } },
+            { purchase: { user: { name: { contains: query } } } },
+            { purchase: { user: { email: { contains: query } } } },
+            { purchase: { agentProduct: { name: { contains: query } } } },
+          ],
+        }
+      : {}),
+  }
+
+  const [payments, monthPaidAggregate, monthPaidCount, refundedAggregate, failedCount, providers] = await Promise.all([
+    prisma.payment.findMany({
+      where,
+      take: 100,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        purchase: {
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+            agentProduct: { select: { id: true, name: true, slug: true } },
+          },
+        },
+      },
+    }),
+    prisma.payment.aggregate({
+      where: { status: 'PAID', createdAt: { gte: currentMonthStart } },
+      _sum: { amount: true },
+    }),
+    prisma.payment.count({ where: { status: 'PAID', createdAt: { gte: currentMonthStart } } }),
+    prisma.payment.aggregate({
+      where: { status: 'REFUNDED', createdAt: { gte: currentMonthStart } },
+      _sum: { amount: true },
+      _count: true,
+    }),
+    prisma.payment.count({ where: { status: 'FAILED', createdAt: { gte: currentMonthStart } } }),
+    prisma.payment.findMany({ distinct: ['provider'], select: { provider: true }, orderBy: { provider: 'asc' } }),
+  ])
 
   return (
     <div className="space-y-5">
       <div>
         <h1 className="text-xl font-bold text-foreground">결제관리</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">결제 내역 및 구독 현황</p>
+        <p className="text-sm text-muted-foreground mt-0.5">실제 결제 내역 및 구독 현황</p>
       </div>
 
-      {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard title="이번 달 결제" value="₩28.7M" change="+8%" changeType="up" icon={DollarSign} iconColor="text-violet-600" iconBg="bg-violet-50" />
-        <StatCard title="이번 달 건수" value="312" change="+24" changeType="up" icon={TrendingUp} iconColor="text-cyan-600" iconBg="bg-cyan-50" />
-        <StatCard title="환불 처리" value="₩356K" change="4건" changeType="neutral" icon={RefreshCw} iconColor="text-amber-600" iconBg="bg-amber-50" />
-        <StatCard title="결제 실패" value="7" change="2.2%" changeType="down" icon={AlertCircle} iconColor="text-rose-600" iconBg="bg-rose-50" />
+        <StatCard title="이번 달 결제" value={formatKrw(monthPaidAggregate._sum.amount)} icon={DollarSign} iconColor="text-violet-600" iconBg="bg-violet-50" />
+        <StatCard title="이번 달 건수" value={`${monthPaidCount}건`} icon={TrendingUp} iconColor="text-cyan-600" iconBg="bg-cyan-50" />
+        <StatCard title="환불 처리" value={formatKrw(refundedAggregate._sum.amount)} change={`${refundedAggregate._count}건`} changeType="neutral" icon={RefreshCw} iconColor="text-amber-600" iconBg="bg-amber-50" />
+        <StatCard title="결제 실패" value={`${failedCount}건`} icon={AlertCircle} iconColor="text-rose-600" iconBg="bg-rose-50" />
       </div>
 
-      {/* Filter */}
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1 max-w-xs">
+      <form className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-56 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-          <Input placeholder="고객, 주문번호 검색..." className="pl-9 h-8 text-sm" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input name="q" placeholder="고객, 주문번호, 상품 검색..." className="pl-9 h-8 text-sm" defaultValue={query} />
         </div>
-        <Button variant="outline" size="sm" className="gap-1.5 h-8">
-          <Filter className="w-3.5 h-3.5" />
-          필터
-        </Button>
-        <select className="h-8 bg-background border border-border rounded-md px-3 text-xs focus:outline-none focus:ring-1 focus:ring-primary">
-          <option>전체 상태</option>
-          <option>결제완료</option>
-          <option>환불</option>
-          <option>실패</option>
-          <option>대기중</option>
+        <select name="status" defaultValue={status} className="h-8 bg-background border border-border rounded-md px-3 text-xs focus:outline-none focus:ring-1 focus:ring-primary">
+          <option value="">전체 상태</option>
+          <option value="PAID">결제완료</option>
+          <option value="PENDING">대기중</option>
+          <option value="REFUNDED">환불</option>
+          <option value="FAILED">실패</option>
+          <option value="CANCELLED">취소</option>
         </select>
-        <select className="h-8 bg-background border border-border rounded-md px-3 text-xs focus:outline-none focus:ring-1 focus:ring-primary">
-          <option>전체 Provider</option>
-          <option>Stripe</option>
-          <option>Toss</option>
-          <option>KakaoPay</option>
+        <select name="provider" defaultValue={provider} className="h-8 bg-background border border-border rounded-md px-3 text-xs focus:outline-none focus:ring-1 focus:ring-primary">
+          <option value="">전체 Provider</option>
+          {providers.map((item) => <option key={item.provider} value={item.provider}>{item.provider}</option>)}
         </select>
-      </div>
+        <button className="h-8 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-muted" type="submit">검색</button>
+      </form>
 
-      {/* Table */}
       <div className="bg-card rounded-lg border border-border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-border bg-muted/40">
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">주문번호</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">결제 ID</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">고객</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">상품</th>
                 <th className="text-right px-4 py-3 font-medium text-muted-foreground">금액</th>
                 <th className="text-center px-4 py-3 font-medium text-muted-foreground">Provider</th>
                 <th className="text-center px-4 py-3 font-medium text-muted-foreground">상태</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">결제일시</th>
-                <th className="text-center px-4 py-3 font-medium text-muted-foreground">액션</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Payment Key</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((payment) => (
+              {payments.map((payment) => (
                 <tr key={payment.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3 font-mono text-muted-foreground">{payment.id}</td>
-                  <td className="px-4 py-3 font-medium">{payment.customer}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{payment.product}</td>
-                  <td className="px-4 py-3 text-right font-semibold">{payment.amount}</td>
+                  <td className="px-4 py-3 font-mono text-muted-foreground">{payment.id.slice(0, 12)}</td>
+                  <td className="px-4 py-3">
+                    <p className="font-medium">{payment.purchase?.user.name ?? '—'}</p>
+                    <p className="font-mono text-[11px] text-muted-foreground">{payment.purchase?.user.email ?? '구매 연결 없음'}</p>
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">{payment.purchase?.agentProduct?.name ?? '토큰/기타 결제'}</td>
+                  <td className="px-4 py-3 text-right font-semibold">{formatKrw(payment.amount)}</td>
                   <td className="px-4 py-3 text-center">
                     <span className="bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px]">{payment.provider}</span>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <StatusBadge status={payment.status} />
+                    <StatusBadge status={statusToBadge(payment.status)} />
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{payment.paidAt}</td>
-                  <td className="px-4 py-3 text-center">
-                    {payment.status === 'paid' && (
-                      <button className="px-2 py-1 text-[11px] border border-amber-200 text-amber-700 bg-amber-50 rounded hover:bg-amber-100 transition-colors">
-                        환불
-                      </button>
-                    )}
-                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">{formatDate(payment.paidAt ?? payment.createdAt)}</td>
+                  <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground">{payment.paymentKey ?? '—'}</td>
                 </tr>
               ))}
+              {payments.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-muted-foreground">조건에 맞는 결제 내역이 없습니다.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

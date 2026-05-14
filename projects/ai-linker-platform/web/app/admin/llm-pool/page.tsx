@@ -1,231 +1,196 @@
-'use client'
-
-import { useState } from 'react'
 import { StatusBadge } from '@/components/admin/status-badge'
 import { StatCard } from '@/components/admin/stat-card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Server, DollarSign, AlertTriangle, Plus, RefreshCw, Trash2 } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { requireAdminPagePermission } from '@/lib/admin-auth'
+import { formatUsd } from '@/lib/admin-format'
+import { prisma } from '@/lib/prisma'
+import { AlertTriangle, DollarSign, Server } from 'lucide-react'
 
-const providers = [
-  {
-    name: 'OpenAI',
-    color: '#7c3aed',
-    accounts: [
-      { id: 'openai-prod-01', model: 'gpt-4o', balance: '$48.20', dailyLimit: '$100', used: '$85.20', status: 'warning' as const, routing: 'primary' },
-      { id: 'openai-prod-02', model: 'gpt-4o-mini', balance: '$120.00', dailyLimit: '$150', used: '$22.10', status: 'normal' as const, routing: 'secondary' },
-    ],
-  },
-  {
-    name: 'Anthropic',
-    color: '#06b6d4',
-    accounts: [
-      { id: 'anthropic-01', model: 'claude-3-5-sonnet', balance: '$89.50', dailyLimit: '$100', used: '$45.20', status: 'normal' as const, routing: 'primary' },
-    ],
-  },
-  {
-    name: 'OpenRouter',
-    color: '#10b981',
-    accounts: [
-      { id: 'openrouter-01', model: 'mixed', balance: '$2.10', dailyLimit: '$50', used: '$47.90', status: 'critical' as const, routing: 'fallback' },
-    ],
-  },
-]
+export const dynamic = 'force-dynamic'
 
-const costData = [
-  { date: '1/7', openai: 42, anthropic: 21, openrouter: 8 },
-  { date: '1/8', openai: 55, anthropic: 28, openrouter: 12 },
-  { date: '1/9', openai: 38, anthropic: 19, openrouter: 7 },
-  { date: '1/10', openai: 72, anthropic: 35, openrouter: 15 },
-  { date: '1/11', openai: 48, anthropic: 24, openrouter: 9 },
-  { date: '1/12', openai: 89, anthropic: 42, openrouter: 18 },
-  { date: '1/13', openai: 61, anthropic: 30, openrouter: 11 },
-]
-
-const routingData = [
-  { name: 'OpenAI', value: 54, color: '#7c3aed' },
-  { name: 'Anthropic', value: 28, color: '#06b6d4' },
-  { name: 'OpenRouter', value: 18, color: '#10b981' },
-]
-
-const routingColors: Record<string, string> = {
-  primary: 'bg-violet-50 text-violet-700 border-violet-200',
-  secondary: 'bg-blue-50 text-blue-700 border-blue-200',
-  fallback: 'bg-amber-50 text-amber-700 border-amber-200',
+const statusBadge = (status: string) => {
+  if (status === 'ACTIVE') return 'active'
+  if (status === 'WARNING') return 'warning'
+  if (status === 'CRITICAL') return 'critical'
+  if (status === 'DISABLED') return 'inactive'
+  return 'normal'
 }
 
-export default function LLMPoolPage() {
-  const [showAddModal, setShowAddModal] = useState(false)
+const percent = (value: unknown, total: unknown) => {
+  const valueNumber = Number(value ?? 0)
+  const totalNumber = Number(total ?? 0)
+  if (totalNumber <= 0) return 0
+  return Math.round((valueNumber / totalNumber) * 100)
+}
+
+export default async function LLMPoolPage() {
+  await requireAdminPagePermission('LLM_POOL_READ')
+
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  const dayStart = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())
+
+  const [providers, accountCount, todayCost, monthCost, warningProviders, warningAccounts, modelUsage, providerUsage] = await Promise.all([
+    prisma.lLMProvider.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        accounts: { orderBy: [{ status: 'asc' }, { priority: 'asc' }] },
+        models: { orderBy: { displayName: 'asc' } },
+      },
+    }),
+    prisma.lLMAccount.count(),
+    prisma.usageEvent.aggregate({ where: { createdAt: { gte: dayStart } }, _sum: { costUsd: true, chargedUsd: true } }),
+    prisma.usageEvent.aggregate({ where: { createdAt: { gte: monthStart } }, _sum: { costUsd: true, chargedUsd: true } }),
+    prisma.lLMProvider.count({ where: { status: { in: ['WARNING', 'CRITICAL'] } } }),
+    prisma.lLMAccount.count({ where: { status: { in: ['WARNING', 'CRITICAL'] } } }),
+    prisma.usageEvent.groupBy({
+      by: ['modelId'],
+      where: { createdAt: { gte: dayStart }, modelId: { not: null } },
+      _sum: { inputTokens: true, outputTokens: true, costUsd: true },
+      _count: true,
+      orderBy: { _sum: { costUsd: 'desc' } },
+      take: 10,
+    }),
+    prisma.usageEvent.groupBy({
+      by: ['providerId'],
+      where: { createdAt: { gte: dayStart }, providerId: { not: null } },
+      _sum: { costUsd: true },
+      _count: true,
+      orderBy: { _sum: { costUsd: 'desc' } },
+      take: 8,
+    }),
+  ])
+
+  const totalTodayCost = Number(todayCost._sum.costUsd ?? 0)
+  const modelIds = modelUsage.map((item) => item.modelId).filter(Boolean) as string[]
+  const providerIds = providerUsage.map((item) => item.providerId).filter(Boolean) as string[]
+  const [modelsById, providersById] = await Promise.all([
+    prisma.lLMModel.findMany({ where: { id: { in: modelIds } }, include: { provider: true } }),
+    prisma.lLMProvider.findMany({ where: { id: { in: providerIds } } }),
+  ])
+  const modelMap = new Map(modelsById.map((model) => [model.id, model]))
+  const providerMap = new Map(providersById.map((provider) => [provider.id, provider]))
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-foreground">LLM 계정 Pool</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">AI 프로바이더 계정 및 라우팅 관리</p>
+          <p className="text-sm text-muted-foreground mt-0.5">실제 AI 프로바이더 계정, 모델 단가 및 라우팅 상태</p>
         </div>
-        <Button size="sm" className="gap-1.5" onClick={() => setShowAddModal(true)}>
-          <Plus className="w-3.5 h-3.5" />
-          계정 추가
-        </Button>
+        <div className="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+          API Key 추가/수정은 암호화 저장 API 단계에서 연결
+        </div>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard title="총 계정 수" value="4" icon={Server} iconColor="text-violet-600" iconBg="bg-violet-50" />
-        <StatCard title="오늘 LLM 비용" value="$102" change="+8%" changeType="down" icon={DollarSign} iconColor="text-cyan-600" iconBg="bg-cyan-50" />
-        <StatCard title="이상 감지" value="2" icon={AlertTriangle} iconColor="text-amber-600" iconBg="bg-amber-50" />
-        <StatCard title="이번달 총비용" value="$890" change="+15%" changeType="down" icon={DollarSign} iconColor="text-rose-600" iconBg="bg-rose-50" />
+        <StatCard title="총 계정 수" value={`${accountCount}개`} icon={Server} iconColor="text-violet-600" iconBg="bg-violet-50" />
+        <StatCard title="오늘 원가" value={formatUsd(todayCost._sum.costUsd)} icon={DollarSign} iconColor="text-cyan-600" iconBg="bg-cyan-50" />
+        <StatCard title="이상 감지" value={`${warningProviders + warningAccounts}건`} icon={AlertTriangle} iconColor="text-amber-600" iconBg="bg-amber-50" />
+        <StatCard title="이번달 원가" value={formatUsd(monthCost._sum.costUsd)} icon={DollarSign} iconColor="text-rose-600" iconBg="bg-rose-50" />
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="bg-card rounded-lg border border-border p-4 lg:col-span-2">
-          <h3 className="text-sm font-semibold text-foreground mb-4">Provider별 일별 비용 ($)</h3>
-          <ResponsiveContainer width="100%" height={160}>
-            <BarChart data={costData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={32} />
-              <Tooltip contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
-              <Bar dataKey="openai" fill="#7c3aed" radius={[2, 2, 0, 0]} stackId="a" name="OpenAI" />
-              <Bar dataKey="anthropic" fill="#06b6d4" radius={[2, 2, 0, 0]} stackId="a" name="Anthropic" />
-              <Bar dataKey="openrouter" fill="#10b981" radius={[2, 2, 0, 0]} stackId="a" name="OpenRouter" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-card rounded-lg border border-border p-4">
-          <h3 className="text-sm font-semibold text-foreground mb-4">라우팅 비율</h3>
-          <ResponsiveContainer width="100%" height={160}>
-            <PieChart>
-              <Pie data={routingData} cx="50%" cy="50%" innerRadius={45} outerRadius={65} paddingAngle={3} dataKey="value">
-                {routingData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-              </Pie>
-              <Tooltip formatter={(v: number) => [`${v}%`]} contentStyle={{ fontSize: 12, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="flex flex-col gap-1.5 mt-2">
-            {routingData.map((d) => (
-              <div key={d.name} className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
-                  <span className="text-muted-foreground">{d.name}</span>
+          <h3 className="text-sm font-semibold text-foreground mb-4">오늘 모델별 비용 TOP 10</h3>
+          <div className="space-y-3">
+            {modelUsage.map((item) => {
+              const model = item.modelId ? modelMap.get(item.modelId) : null
+              const cost = Number(item._sum.costUsd ?? 0)
+              return (
+                <div key={item.modelId ?? 'unknown'} className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <div>
+                      <span className="font-medium text-foreground">{model?.displayName ?? '알 수 없는 모델'}</span>
+                      <span className="ml-2 text-muted-foreground">{model?.provider.name ?? 'Unknown'} · {item._count}건</span>
+                    </div>
+                    <span className="font-semibold">{formatUsd(cost)}</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full rounded-full bg-violet-500" style={{ width: `${Math.max(4, percent(cost, totalTodayCost))}%` }} />
+                  </div>
                 </div>
-                <span className="font-medium">{d.value}%</span>
-              </div>
-            ))}
+              )
+            })}
+            {modelUsage.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">오늘 LLM 사용 데이터가 없습니다.</p>}
+          </div>
+        </div>
+
+        <div className="bg-card rounded-lg border border-border p-4">
+          <h3 className="text-sm font-semibold text-foreground mb-4">오늘 Provider 라우팅 비중</h3>
+          <div className="space-y-3">
+            {providerUsage.map((item) => {
+              const provider = item.providerId ? providerMap.get(item.providerId) : null
+              const cost = Number(item._sum.costUsd ?? 0)
+              return (
+                <div key={item.providerId ?? 'unknown'} className="flex items-center justify-between rounded-lg border border-border/60 p-3 text-xs">
+                  <div>
+                    <p className="font-semibold text-foreground">{provider?.name ?? 'Unknown Provider'}</p>
+                    <p className="text-muted-foreground mt-0.5">{item._count}건 · {percent(cost, totalTodayCost)}%</p>
+                  </div>
+                  <p className="font-bold text-foreground">{formatUsd(cost)}</p>
+                </div>
+              )
+            })}
+            {providerUsage.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">오늘 라우팅 데이터가 없습니다.</p>}
           </div>
         </div>
       </div>
 
-      {/* Provider Accounts */}
       <div className="space-y-4">
         {providers.map((provider) => (
-          <div key={provider.name} className="bg-card rounded-lg border border-border overflow-hidden">
+          <div key={provider.id} className="bg-card rounded-lg border border-border overflow-hidden">
             <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-muted/20">
-              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: provider.color }} />
               <h3 className="text-sm font-semibold text-foreground">{provider.name}</h3>
-              <span className="text-xs text-muted-foreground">계정 {provider.accounts.length}개</span>
+              <StatusBadge status={statusBadge(provider.status)} />
+              <span className="text-xs text-muted-foreground">계정 {provider.accounts.length}개 · 모델 {provider.models.length}개 · type {provider.type}</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-border/50 bg-muted/10">
-                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">계정 ID</th>
-                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">모델</th>
-                    <th className="text-right px-4 py-2.5 font-medium text-muted-foreground">잔액</th>
-                    <th className="text-right px-4 py-2.5 font-medium text-muted-foreground">일한도</th>
-                    <th className="text-right px-4 py-2.5 font-medium text-muted-foreground">오늘 사용</th>
-                    <th className="text-center px-4 py-2.5 font-medium text-muted-foreground">라우팅</th>
+                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">계정명</th>
+                    <th className="text-right px-4 py-2.5 font-medium text-muted-foreground">월 한도</th>
+                    <th className="text-right px-4 py-2.5 font-medium text-muted-foreground">이번달 사용</th>
+                    <th className="text-center px-4 py-2.5 font-medium text-muted-foreground">우선순위</th>
                     <th className="text-center px-4 py-2.5 font-medium text-muted-foreground">상태</th>
-                    <th className="text-center px-4 py-2.5 font-medium text-muted-foreground">액션</th>
                   </tr>
                 </thead>
                 <tbody>
                   {provider.accounts.map((account) => (
                     <tr key={account.id} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
-                      <td className="px-4 py-3 font-mono text-muted-foreground">{account.id}</td>
-                      <td className="px-4 py-3 font-medium">{account.model}</td>
-                      <td className="px-4 py-3 text-right font-semibold">{account.balance}</td>
-                      <td className="px-4 py-3 text-right text-muted-foreground">{account.dailyLimit}</td>
-                      <td className="px-4 py-3 text-right text-muted-foreground">{account.used}</td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${routingColors[account.routing]}`}>
-                          {account.routing}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center"><StatusBadge status={account.status} /></td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-center gap-1">
-                          <button className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground" title="새로고침">
-                            <RefreshCw className="w-3.5 h-3.5" />
-                          </button>
-                          <button className="p-1.5 rounded hover:bg-muted transition-colors text-rose-500 hover:bg-rose-50" title="삭제">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
+                      <td className="px-4 py-3 font-medium">{account.name}</td>
+                      <td className="px-4 py-3 text-right font-semibold">{formatUsd(account.monthlyLimitUsd)}</td>
+                      <td className="px-4 py-3 text-right text-muted-foreground">{formatUsd(account.usedThisMonthUsd)}</td>
+                      <td className="px-4 py-3 text-center font-mono text-muted-foreground">{account.priority}</td>
+                      <td className="px-4 py-3 text-center"><StatusBadge status={statusBadge(account.status)} /></td>
                     </tr>
                   ))}
+                  {provider.accounts.length === 0 && (
+                    <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">등록된 LLM 계정이 없습니다.</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-4 bg-muted/10">
+              {provider.models.map((model) => (
+                <div key={model.id} className="rounded-lg border border-border bg-card p-3 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-semibold text-foreground truncate">{model.displayName}</p>
+                    <StatusBadge status={statusBadge(model.status)} />
+                  </div>
+                  <p className="mt-1 font-mono text-[11px] text-muted-foreground truncate">{model.modelName}</p>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-muted-foreground">
+                    <div>원가 In <b className="text-foreground">{formatUsd(model.inputCostPer1M)}</b></div>
+                    <div>원가 Out <b className="text-foreground">{formatUsd(model.outputCostPer1M)}</b></div>
+                    <div>판매 In <b className="text-foreground">{formatUsd(model.saleInputPricePer1M)}</b></div>
+                    <div>판매 Out <b className="text-foreground">{formatUsd(model.saleOutputPricePer1M)}</b></div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         ))}
+        {providers.length === 0 && <div className="rounded-lg border border-border bg-card p-8 text-center text-sm text-muted-foreground">등록된 LLM Provider가 없습니다.</div>}
       </div>
-
-      {showAddModal && <AddAccountModal onClose={() => setShowAddModal(false)} />}
     </div>
-  )
-}
-
-function AddAccountModal({ onClose }: { onClose: () => void }) {
-  return (
-    <>
-      <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-card rounded-xl border border-border w-full max-w-sm shadow-2xl">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-            <h2 className="text-sm font-bold">LLM 계정 추가</h2>
-            <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-sm">✕</button>
-          </div>
-          <div className="p-5 space-y-4">
-            <div>
-              <label className="text-xs font-medium block mb-1.5">Provider</label>
-              <select className="w-full h-8 bg-background border border-border rounded-md px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary">
-                <option>OpenAI</option>
-                <option>Anthropic</option>
-                <option>OpenRouter</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-medium block mb-1.5">계정 ID</label>
-              <Input className="h-8 text-sm" placeholder="openai-prod-03" />
-            </div>
-            <div>
-              <label className="text-xs font-medium block mb-1.5">API Key</label>
-              <Input className="h-8 text-sm" type="password" placeholder="sk-..." />
-            </div>
-            <div>
-              <label className="text-xs font-medium block mb-1.5">라우팅 역할</label>
-              <select className="w-full h-8 bg-background border border-border rounded-md px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary">
-                <option>primary</option>
-                <option>secondary</option>
-                <option>fallback</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-medium block mb-1.5">일일 한도 ($)</label>
-              <Input className="h-8 text-sm" placeholder="100" type="number" />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 px-5 pb-5">
-            <Button variant="outline" size="sm" onClick={onClose}>취소</Button>
-            <Button size="sm">추가</Button>
-          </div>
-        </div>
-      </div>
-    </>
   )
 }
