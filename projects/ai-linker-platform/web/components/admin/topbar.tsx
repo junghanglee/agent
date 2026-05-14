@@ -19,29 +19,21 @@ export function AdminTopbar({ admin }: { admin: { name: string; email: string; r
 
   return (
     <header className="h-14 border-b border-border bg-card flex items-center justify-between px-6 shrink-0">
-      {/* Search */}
       <div className="relative w-80">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="검색..."
-          className="pl-9 h-8 text-sm bg-muted/50 border-border/60"
-        />
+        <Input placeholder="검색..." className="pl-9 h-8 text-sm bg-muted/50 border-border/60" />
       </div>
 
-      {/* Right actions */}
       <div className="flex items-center gap-3">
-        {/* Environment Badge */}
         <Badge className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 text-xs font-medium px-2 py-0.5 rounded-full">
-          Production
+          {admin.role === 'SUPER_ADMIN' ? 'Super Admin' : 'Admin'}
         </Badge>
 
-        {/* Notifications */}
         <button className="relative p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
           <Bell className="w-4 h-4" />
           <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-destructive rounded-full" />
         </button>
 
-        {/* Admin profile */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-2 hover:bg-muted rounded-md px-2 py-1.5 transition-colors">
