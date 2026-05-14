@@ -16,9 +16,14 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'AI Linker – AI Agent 마켓플레이스',
-  description: 'AI Agent 설치와 사용을 누구나 쉽게. AI Linker에서 목적에 맞는 Agent를 고르고, 설치코드와 함께 설치하고, 저렴한 LLM 토큰으로 바로 사용하세요.',
+  title: 'AI Linker - AI Agent 마켓플레이스',
+  description: 'AI Agent 설치와 사용을 누구나 쉽게. AI Linker에서 목적에 맞는 Agent를 고르고 설치코드와 안전한 LLM 운영으로 바로 시작하세요.',
   generator: 'v0.app',
+  icons: {
+    icon: '/brand/ai-linker-mark.svg',
+    shortcut: '/brand/ai-linker-mark.svg',
+    apple: '/brand/ai-linker-mark.svg',
+  },
 }
 
 export default function RootLayout({

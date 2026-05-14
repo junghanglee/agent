@@ -1,4 +1,5 @@
 import { ShieldCheck } from 'lucide-react'
+import { AILinkerLogo } from '@/components/brand/ai-linker-logo'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { adminLoginAction } from '@/lib/admin-auth-actions'
@@ -20,13 +21,16 @@ export default async function AdminLoginPage({ searchParams }: { searchParams: P
   return (
     <main className="min-h-screen bg-background flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-sm p-8">
-        <div className="flex items-center gap-3 mb-7">
-          <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-            <ShieldCheck className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-foreground">AI Linker 관리자 로그인</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">운영 대시보드 접근 권한 확인</p>
+        <div className="mb-7 space-y-4">
+          <AILinkerLogo href="/" variant="dark" size="lg" priority />
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">관리자 로그인</h1>
+              <p className="text-sm text-muted-foreground mt-0.5">운영 대시보드 접근 권한 확인</p>
+            </div>
           </div>
         </div>
 

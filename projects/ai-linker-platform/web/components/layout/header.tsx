@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Menu, X, Zap } from "lucide-react"
+import { AILinkerLogo } from "@/components/brand/ai-linker-logo"
 
 const navItems = [
   { label: "Agent 마켓", href: "/agents" },
@@ -31,7 +32,7 @@ export function Header() {
       : "bg-transparent border-b border-transparent"
     : "bg-card/95 backdrop-blur-md border-b border-border"
 
-  const logoColor = isHome ? "text-white" : "text-foreground"
+  const logoVariant = isHome ? "light" : "dark"
   const navColor = isHome
     ? "text-white/70 hover:text-white"
     : "text-muted-foreground hover:text-foreground"
@@ -44,15 +45,7 @@ export function Header() {
       className={`fixed top-0 z-50 w-full transition-all duration-500 ${headerBase}`}
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-10">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-cyan/20 ring-1 ring-brand-cyan/40 group-hover:bg-brand-cyan/30 transition-colors">
-            <Zap className="h-4 w-4 text-brand-cyan" />
-          </div>
-          <span className={`text-[17px] font-bold tracking-tight transition-colors ${logoColor}`}>
-            AI <span className="text-brand-cyan">Linker</span>
-          </span>
-        </Link>
+        <AILinkerLogo href="/" variant={logoVariant} size="md" priority />
 
         {/* Desktop nav */}
         <nav className="hidden items-center gap-8 md:flex">

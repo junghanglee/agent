@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Zap } from "lucide-react"
+import { AILinkerLogo } from "@/components/brand/ai-linker-logo"
 
 const footerLinks = {
   "플랫폼": [
@@ -26,14 +26,9 @@ export function Footer() {
         <div className="grid gap-8 md:grid-cols-4">
           {/* Brand */}
           <div className="md:col-span-1">
-            <Link href="/" className="mb-4 flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-navy">
-                <Zap className="h-4 w-4 text-brand-cyan" />
-              </div>
-              <span className="text-lg font-bold text-foreground">
-                AI <span className="text-brand-cyan">Linker</span>
-              </span>
-            </Link>
+            <div className="mb-4">
+              <AILinkerLogo href="/" variant="dark" size="md" />
+            </div>
             <p className="text-sm leading-relaxed text-muted-foreground">
               AI Agent 설치와 사용을 누구나 쉽게. 목적에 맞는 AI Agent를 골라 바로 시작하세요.
             </p>

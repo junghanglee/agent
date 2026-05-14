@@ -20,8 +20,8 @@ import {
   ShieldCheck,
   ChevronLeft,
   ChevronRight,
-  Zap,
 } from 'lucide-react'
+import { AILinkerLogo } from '@/components/brand/ai-linker-logo'
 import { useState } from 'react'
 
 const navItems = [
@@ -54,12 +54,11 @@ export function AdminSidebar() {
     >
       {/* Logo */}
       <div className={cn('flex items-center gap-2.5 px-4 h-14 border-b border-sidebar-border', collapsed && 'justify-center px-0')}>
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary shrink-0">
-          <Zap className="w-4 h-4 text-primary-foreground" />
-        </div>
-        {!collapsed && (
+        {collapsed ? (
+          <AILinkerLogo href="/admin" variant="mark" size="sm" className="h-8 w-8" />
+        ) : (
           <div>
-            <span className="text-sidebar-foreground font-bold text-sm leading-none">AI Linker</span>
+            <AILinkerLogo href="/admin" variant="light" size="sm" />
             <span className="block text-[10px] text-sidebar-foreground/50 mt-0.5">관리자</span>
           </div>
         )}
