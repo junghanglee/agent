@@ -1,6 +1,7 @@
+import { LLMAccountCreateButton, LLMAccountDisableButton, LLMAccountEditButton, LLMProviderCreateButton, LLMProviderDisableButton, LLMProviderEditButton } from '@/components/admin/llm-pool-actions'
 import { StatusBadge } from '@/components/admin/status-badge'
 import { StatCard } from '@/components/admin/stat-card'
-import { requireAdminPagePermission } from '@/lib/admin-auth'
+import { hasAdminPermission, requireAdminPagePermission } from '@/lib/admin-auth'
 import { formatUsd } from '@/lib/admin-format'
 import { prisma } from '@/lib/prisma'
 import { AlertTriangle, DollarSign, Server } from 'lucide-react'
@@ -23,7 +24,7 @@ const percent = (value: unknown, total: unknown) => {
 }
 
 export default async function LLMPoolPage() {
-  await requireAdminPagePermission('LLM_POOL_READ')
+  const session = await requireAdminPagePermission('LLM_POOL_READ')
 
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
   const dayStart = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())
@@ -68,6 +69,8 @@ export default async function LLMPoolPage() {
   ])
   const modelMap = new Map(modelsById.map((model) => [model.id, model]))
   const providerMap = new Map(providersById.map((provider) => [provider.id, provider]))
+  const canManageLLM = hasAdminPermission(session, 'LLM_POOL_MANAGE')
+  const providerOptions = providers.map((provider) => ({ id: provider.id, name: provider.name, type: provider.type, status: provider.status }))
 
   return (
     <div className="space-y-5">
@@ -76,9 +79,16 @@ export default async function LLMPoolPage() {
           <h1 className="text-xl font-bold text-foreground">LLM 계정 Pool</h1>
           <p className="text-sm text-muted-foreground mt-0.5">실제 AI 프로바이더 계정, 모델 단가 및 라우팅 상태</p>
         </div>
-        <div className="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
-          API Key 추가/수정은 암호화 저장 API 단계에서 연결
-        </div>
+        {canManageLLM ? (
+          <div className="flex items-center gap-2">
+            <LLMProviderCreateButton />
+            <LLMAccountCreateButton providers={providerOptions} />
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+            LLM Provider/API Key 관리는 슈퍼관리자 전용입니다.
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -142,6 +152,12 @@ export default async function LLMPoolPage() {
               <h3 className="text-sm font-semibold text-foreground">{provider.name}</h3>
               <StatusBadge status={statusBadge(provider.status)} />
               <span className="text-xs text-muted-foreground">계정 {provider.accounts.length}개 · 모델 {provider.models.length}개 · type {provider.type}</span>
+              {canManageLLM && (
+                <div className="ml-auto flex items-center gap-1">
+                  <LLMProviderEditButton provider={{ id: provider.id, name: provider.name, type: provider.type, status: provider.status }} />
+                  <LLMProviderDisableButton id={provider.id} />
+                </div>
+              )}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
@@ -152,6 +168,7 @@ export default async function LLMPoolPage() {
                     <th className="text-right px-4 py-2.5 font-medium text-muted-foreground">이번달 사용</th>
                     <th className="text-center px-4 py-2.5 font-medium text-muted-foreground">우선순위</th>
                     <th className="text-center px-4 py-2.5 font-medium text-muted-foreground">상태</th>
+                    {canManageLLM && <th className="text-center px-4 py-2.5 font-medium text-muted-foreground">액션</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -162,10 +179,29 @@ export default async function LLMPoolPage() {
                       <td className="px-4 py-3 text-right text-muted-foreground">{formatUsd(account.usedThisMonthUsd)}</td>
                       <td className="px-4 py-3 text-center font-mono text-muted-foreground">{account.priority}</td>
                       <td className="px-4 py-3 text-center"><StatusBadge status={statusBadge(account.status)} /></td>
+                      {canManageLLM && (
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-center gap-1">
+                            <LLMAccountEditButton
+                              providers={providerOptions}
+                              account={{
+                                id: account.id,
+                                providerId: account.providerId,
+                                name: account.name,
+                                monthlyLimitUsd: account.monthlyLimitUsd,
+                                usedThisMonthUsd: account.usedThisMonthUsd,
+                                status: account.status,
+                                priority: account.priority,
+                              }}
+                            />
+                            <LLMAccountDisableButton id={account.id} />
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                   {provider.accounts.length === 0 && (
-                    <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">등록된 LLM 계정이 없습니다.</td></tr>
+                    <tr><td colSpan={canManageLLM ? 6 : 5} className="px-4 py-8 text-center text-sm text-muted-foreground">등록된 LLM 계정이 없습니다.</td></tr>
                   )}
                 </tbody>
               </table>

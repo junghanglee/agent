@@ -76,9 +76,31 @@ npm run build
 - `CreditTransaction(type=MANUAL_ADJUSTMENT)` 기록
 - `AuditLog`에 `CREDIT_MANUAL_GRANT` / `CREDIT_MANUAL_DEDUCT` 기록
 
+## 추가 완료: LLM Provider/API Key 관리
+
+- `LLM_POOL_MANAGE` 권한 추가
+- `SUPER_ADMIN`에게만 LLM Provider/계정 생성·수정·비활성화 허용
+- 일반 `ADMIN`은 LLM Pool 조회만 가능
+- Provider 관리 API 추가
+  - `GET /api/admin/llm-providers`
+  - `POST /api/admin/llm-providers`
+  - `PATCH /api/admin/llm-providers/[id]`
+  - `DELETE /api/admin/llm-providers/[id]` → soft disable
+- LLM 계정 관리 API 추가
+  - `GET /api/admin/llm-accounts`
+  - `POST /api/admin/llm-accounts`
+  - `PATCH /api/admin/llm-accounts/[id]`
+  - `DELETE /api/admin/llm-accounts/[id]` → soft disable
+- API Key 암호화 저장 유틸 추가
+  - AES-256-GCM 기반 `encryptLLMSecret`
+  - production에서는 32자 이상 `AI_LINKER_ENCRYPTION_KEY` 필수
+  - 조회/API 응답/AuditLog에는 API Key 평문 미노출, 마스킹 처리
+- `/admin/llm-pool` 화면에 Provider 추가/수정/비활성화 버튼 연결
+- `/admin/llm-pool` 화면에 계정 추가/수정/비활성화 버튼 연결
+- 모든 생성/수정/비활성화 작업 AuditLog 기록
+
 ## 남은 작업
 
 - 결제 Provider 실제 웹훅/승인 API 연결
-- LLM Provider/API Key 생성·수정·비활성화 API 구현
 - 운영 차트 UX를 필요 시 클라이언트 차트 컴포넌트로 재도입
 - 실제 운영 데이터가 없는 초기 상태용 seed 데이터 보강

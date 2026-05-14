@@ -8,6 +8,7 @@ export const licenseStatusSchema = z.enum(['ACTIVE', 'EXPIRED', 'REVOKED', 'SUSP
 export const adminRoleSchema = z.enum(['ADMIN', 'SUPER_ADMIN'])
 export const adminUserStatusSchema = z.enum(['ACTIVE', 'PENDING', 'SUSPENDED', 'DELETED'])
 export const creditAdjustmentTypeSchema = z.enum(['GRANT', 'DEDUCT'])
+export const providerStatusSchema = z.enum(['ACTIVE', 'WARNING', 'CRITICAL', 'DISABLED'])
 
 const stringArraySchema = z.array(z.string().trim().min(1)).default([])
 const installerFileSchema = z.object({
@@ -87,6 +88,35 @@ export const adjustCreditSchema = z.object({
   amountUsd: z.coerce.number().positive().max(100000),
   reason: z.string().trim().min(2).max(500),
 })
+
+export const createLLMProviderSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  type: z.string().trim().min(1).max(80),
+  status: providerStatusSchema.default('ACTIVE'),
+})
+
+export const updateLLMProviderSchema = createLLMProviderSchema.partial().refine((value) => Object.keys(value).length > 0, {
+  message: '수정할 필드가 필요합니다.',
+})
+
+export const createLLMAccountSchema = z.object({
+  providerId: z.string().trim().min(1),
+  name: z.string().trim().min(1).max(120),
+  apiKey: z.string().trim().min(8).max(4096),
+  monthlyLimitUsd: z.coerce.number().min(0).max(1000000).default(0),
+  status: providerStatusSchema.default('ACTIVE'),
+  priority: z.coerce.number().int().min(0).max(100000).default(100),
+})
+
+export const updateLLMAccountSchema = z.object({
+  providerId: z.string().trim().min(1).optional(),
+  name: z.string().trim().min(1).max(120).optional(),
+  apiKey: z.string().trim().min(8).max(4096).optional(),
+  monthlyLimitUsd: z.coerce.number().min(0).max(1000000).optional(),
+  usedThisMonthUsd: z.coerce.number().min(0).max(1000000).optional(),
+  status: providerStatusSchema.optional(),
+  priority: z.coerce.number().int().min(0).max(100000).optional(),
+}).refine((value) => Object.keys(value).length > 0, { message: '수정할 필드가 필요합니다.' })
 
 export const createAdminUserSchema = z.object({
   email: z.string().trim().email().max(255),
