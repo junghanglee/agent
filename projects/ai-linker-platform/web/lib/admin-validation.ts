@@ -7,6 +7,7 @@ export const installCodeStatusSchema = z.enum(['PENDING', 'ACTIVE', 'USED', 'EXP
 export const licenseStatusSchema = z.enum(['ACTIVE', 'EXPIRED', 'REVOKED', 'SUSPENDED'])
 export const adminRoleSchema = z.enum(['ADMIN', 'SUPER_ADMIN'])
 export const adminUserStatusSchema = z.enum(['ACTIVE', 'PENDING', 'SUSPENDED', 'DELETED'])
+export const creditAdjustmentTypeSchema = z.enum(['GRANT', 'DEDUCT'])
 
 const stringArraySchema = z.array(z.string().trim().min(1)).default([])
 const installerFileSchema = z.object({
@@ -79,6 +80,13 @@ export const updateLicenseSchema = z.object({
   status: licenseStatusSchema.optional(),
   endsAt: z.coerce.date().optional().nullable(),
 }).refine((value) => Object.keys(value).length > 0, { message: '수정할 필드가 필요합니다.' })
+
+export const adjustCreditSchema = z.object({
+  userId: z.string().trim().min(1),
+  type: creditAdjustmentTypeSchema,
+  amountUsd: z.coerce.number().positive().max(100000),
+  reason: z.string().trim().min(2).max(500),
+})
 
 export const createAdminUserSchema = z.object({
   email: z.string().trim().email().max(255),

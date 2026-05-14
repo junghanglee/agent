@@ -65,10 +65,20 @@ npm run lint
 npm run build
 ```
 
+## 추가 완료: 크레딧 수동 지급/차감
+
+- `TOKENS_MANAGE` 권한 추가
+- `SUPER_ADMIN`에게만 크레딧 수동 지급/차감 허용
+- 일반 `ADMIN`은 토큰/크레딧 조회만 가능
+- `/admin/tokens` 상단 및 지갑 행별 지급/차감 버튼 연결
+- 지갑이 없는 활성 고객은 지급 시 자동 지갑 생성
+- 차감 후 잔액이 음수가 되는 요청 차단
+- `CreditTransaction(type=MANUAL_ADJUSTMENT)` 기록
+- `AuditLog`에 `CREDIT_MANUAL_GRANT` / `CREDIT_MANUAL_DEDUCT` 기록
+
 ## 남은 작업
 
 - 결제 Provider 실제 웹훅/승인 API 연결
-- 크레딧 수동 지급/차감 API와 `AdminAuditLog` 연결
 - LLM Provider/API Key 생성·수정·비활성화 API 구현
 - 운영 차트 UX를 필요 시 클라이언트 차트 컴포넌트로 재도입
 - 실제 운영 데이터가 없는 초기 상태용 seed 데이터 보강
