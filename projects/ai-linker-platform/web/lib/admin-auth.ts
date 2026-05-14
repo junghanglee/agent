@@ -225,3 +225,15 @@ export async function assertAdminApiSession() {
   }
   return null
 }
+
+export async function requireAdminApiSession() {
+  const session = await getAdminSession()
+  if (!session) {
+    return {
+      session: null,
+      response: Response.json({ ok: false, error: '관리자 로그인이 필요합니다.' }, { status: 401 }),
+    }
+  }
+
+  return { session, response: null }
+}

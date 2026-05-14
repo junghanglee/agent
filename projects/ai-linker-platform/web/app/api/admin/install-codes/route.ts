@@ -1,5 +1,6 @@
-import { assertAdminApiSession } from '@/lib/admin-auth'
+import { assertAdminApiSession, requireAdminApiSession } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
+import { recordAdminAudit } from '@/lib/admin-audit'
 import { issueInstallCodeSchema } from '@/lib/admin-validation'
 import { fail, ok, serializeForJson, validationFail } from '@/lib/api-response'
 
@@ -38,8 +39,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const authError = await assertAdminApiSession()
-  if (authError) return authError
+  const { session, response } = await requireAdminApiSession()
+  if (response) return response
 
   const parsed = issueInstallCodeSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return validationFail(parsed.error)
@@ -83,6 +84,14 @@ export async function POST(request: Request) {
       })
 
       return { installCode, license }
+    })
+
+    await recordAdminAudit({
+      session,
+      action: 'INSTALL_CODE_ISSUE',
+      entityType: 'InstallCode',
+      entityId: result.installCode.id,
+      afterData: result,
     })
 
     return ok(serializeForJson(result), { status: 201 })

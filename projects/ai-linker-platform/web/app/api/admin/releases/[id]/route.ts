@@ -1,5 +1,6 @@
-import { assertAdminApiSession } from '@/lib/admin-auth'
+import { assertAdminApiSession, requireAdminApiSession } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
+import { recordAdminAudit } from '@/lib/admin-audit'
 import { updateReleaseSchema } from '@/lib/admin-validation'
 import { fail, ok, serializeForJson, validationFail } from '@/lib/api-response'
 
@@ -20,8 +21,8 @@ export async function GET(_request: Request, { params }: Params) {
 }
 
 export async function PATCH(request: Request, { params }: Params) {
-  const authError = await assertAdminApiSession()
-  if (authError) return authError
+  const { session, response } = await requireAdminApiSession()
+  if (response) return response
 
   const { id } = await params
   const parsed = updateReleaseSchema.safeParse(await request.json().catch(() => null))
@@ -30,8 +31,8 @@ export async function PATCH(request: Request, { params }: Params) {
   const { installerFile, installerFileId, isLatest, ...rest } = parsed.data
 
   try {
-    const release = await prisma.$transaction(async (tx) => {
-      const current = await tx.agentRelease.findUnique({ where: { id } })
+    const { before, release } = await prisma.$transaction(async (tx) => {
+      const current = await tx.agentRelease.findUnique({ where: { id }, include: { installerFile: true } })
       if (!current) throw new Error('NOT_FOUND')
 
       const nextProductId = rest.agentProductId ?? current.agentProductId
@@ -44,7 +45,7 @@ export async function PATCH(request: Request, { params }: Params) {
         })
       }
 
-      return tx.agentRelease.update({
+      const release = await tx.agentRelease.update({
         where: { id },
         data: {
           ...rest,
@@ -59,6 +60,17 @@ export async function PATCH(request: Request, { params }: Params) {
         },
         include: { agentProduct: true, installerFile: true },
       })
+
+      return { before: current, release }
+    })
+
+    await recordAdminAudit({
+      session,
+      action: 'AGENT_RELEASE_UPDATE',
+      entityType: 'AgentRelease',
+      entityId: release.id,
+      beforeData: before,
+      afterData: release,
     })
 
     return ok(serializeForJson(release))
@@ -69,15 +81,25 @@ export async function PATCH(request: Request, { params }: Params) {
 }
 
 export async function DELETE(_request: Request, { params }: Params) {
-  const authError = await assertAdminApiSession()
-  if (authError) return authError
+  const { session, response } = await requireAdminApiSession()
+  if (response) return response
 
   const { id } = await params
 
   try {
+    const before = await prisma.agentRelease.findUnique({ where: { id }, include: { installerFile: true } })
     const release = await prisma.agentRelease.update({
       where: { id },
       data: { status: 'ARCHIVED', isLatest: false },
+      include: { installerFile: true },
+    })
+    await recordAdminAudit({
+      session,
+      action: 'AGENT_RELEASE_ARCHIVE',
+      entityType: 'AgentRelease',
+      entityId: release.id,
+      beforeData: before,
+      afterData: release,
     })
     return ok(serializeForJson(release))
   } catch {

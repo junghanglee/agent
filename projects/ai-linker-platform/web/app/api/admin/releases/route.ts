@@ -1,5 +1,6 @@
-import { assertAdminApiSession } from '@/lib/admin-auth'
+import { assertAdminApiSession, requireAdminApiSession } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
+import { recordAdminAudit } from '@/lib/admin-audit'
 import { createReleaseSchema } from '@/lib/admin-validation'
 import { fail, ok, serializeForJson, validationFail } from '@/lib/api-response'
 
@@ -19,8 +20,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const authError = await assertAdminApiSession()
-  if (authError) return authError
+  const { session, response } = await requireAdminApiSession()
+  if (response) return response
 
   const parsed = createReleaseSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return validationFail(parsed.error)
@@ -48,6 +49,14 @@ export async function POST(request: Request) {
         },
         include: { agentProduct: true, installerFile: true },
       })
+    })
+
+    await recordAdminAudit({
+      session,
+      action: 'AGENT_RELEASE_CREATE',
+      entityType: 'AgentRelease',
+      entityId: release.id,
+      afterData: release,
     })
 
     return ok(serializeForJson(release), { status: 201 })

@@ -11,7 +11,16 @@
 ```text
 projects/ai-linker-platform/web/lib/admin-auth.ts
 projects/ai-linker-platform/web/lib/admin-auth-actions.ts
+projects/ai-linker-platform/web/lib/admin-audit.ts
+projects/ai-linker-platform/web/lib/admin-actions.ts
 projects/ai-linker-platform/web/app/admin/login/page.tsx
+projects/ai-linker-platform/web/app/api/admin/products/route.ts
+projects/ai-linker-platform/web/app/api/admin/products/[id]/route.ts
+projects/ai-linker-platform/web/app/api/admin/releases/route.ts
+projects/ai-linker-platform/web/app/api/admin/releases/[id]/route.ts
+projects/ai-linker-platform/web/app/api/admin/install-codes/route.ts
+projects/ai-linker-platform/web/app/api/admin/install-codes/[id]/route.ts
+projects/ai-linker-platform/web/app/api/admin/licenses/[id]/route.ts
 projects/ai-linker-platform/web/scripts/hash-admin-password.mjs
 projects/ai-linker-platform/web/package.json
 projects/ai-linker-platform/web/.env.example
@@ -83,7 +92,34 @@ reason: email | password | rate_limited
 로그인 실패가 너무 많습니다. 15분 뒤 다시 시도하세요.
 ```
 
-## 6. 로그인 오류 처리
+## 6. 관리자 변경 AuditLog 강화
+
+관리자 mutation은 `AuditLog`에 변경 전/후 데이터를 기록합니다.
+
+대상:
+
+```text
+상품 생성/수정/보관
+릴리즈 생성/수정/보관
+설치코드 발급/수정/폐기
+라이선스 상태 변경/폐기
+```
+
+기록되는 주요 값:
+
+```text
+adminUserId
+ action
+entityType
+entityId
+beforeData
+afterData
+createdAt
+```
+
+`lib/admin-audit.ts`의 `recordAdminAudit()` 헬퍼를 통해 Server Action과 Admin API가 같은 방식으로 감사를 남깁니다.
+
+## 7. 로그인 오류 처리
 
 운영 환경변수가 잘못되어 있으면 관리자 로그인 화면에 설정 오류 안내가 표시됩니다.
 
@@ -93,7 +129,7 @@ reason: email | password | rate_limited
 
 서버 로그에는 구체적인 설정 오류가 남습니다.
 
-## 7. 검증
+## 8. 검증
 
 아래 검증을 통과했습니다.
 
@@ -103,11 +139,10 @@ npm run admin:hash-password -- "test-password"
 npm run build
 ```
 
-## 8. 다음 작업 후보
+## 9. 다음 작업 후보
 
 ```text
-1. 관리자 mutation 전체 AuditLog 기록 강화
-2. CSRF 방어 강화
-3. 관리자별 권한 분리
-4. 2FA/OTP 추가
+1. CSRF 방어 강화
+2. 관리자별 권한 분리
+3. 2FA/OTP 추가
 ```

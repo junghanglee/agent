@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { requireAdminSession } from '@/lib/admin-auth'
+import { recordAdminAudit } from '@/lib/admin-audit'
 import { prisma } from '@/lib/prisma'
 import {
   createProductSchema,
@@ -31,7 +32,7 @@ function optionalDateString(value: FormDataEntryValue | null) {
 }
 
 export async function createProductAction(formData: FormData) {
-  await requireAdminSession()
+  const session = await requireAdminSession()
 
   const parsed = createProductSchema.safeParse({
     slug: formData.get('slug'),
@@ -49,7 +50,7 @@ export async function createProductAction(formData: FormData) {
 
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? '상품 입력값이 올바르지 않습니다.')
 
-  await prisma.agentProduct.create({
+  const product = await prisma.agentProduct.create({
     data: {
       ...parsed.data,
       purposeTags: JSON.stringify(parsed.data.purposeTags),
@@ -57,11 +58,13 @@ export async function createProductAction(formData: FormData) {
     },
   })
 
+  await recordAdminAudit({ session, action: 'AGENT_PRODUCT_CREATE', entityType: 'AgentProduct', entityId: product.id, afterData: product })
+
   revalidatePath('/admin/products')
 }
 
 export async function updateProductAction(formData: FormData) {
-  await requireAdminSession()
+  const session = await requireAdminSession()
 
   const id = String(formData.get('id') ?? '')
   if (!id) throw new Error('상품 ID가 필요합니다.')
@@ -82,8 +85,9 @@ export async function updateProductAction(formData: FormData) {
 
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? '상품 입력값이 올바르지 않습니다.')
 
+  const before = await prisma.agentProduct.findUnique({ where: { id } })
   const { purposeTags, supportedPlatforms, ...rest } = parsed.data
-  await prisma.agentProduct.update({
+  const product = await prisma.agentProduct.update({
     where: { id },
     data: {
       ...rest,
@@ -92,20 +96,24 @@ export async function updateProductAction(formData: FormData) {
     },
   })
 
+  await recordAdminAudit({ session, action: 'AGENT_PRODUCT_UPDATE', entityType: 'AgentProduct', entityId: product.id, beforeData: before, afterData: product })
+
   revalidatePath('/admin/products')
 }
 
 export async function archiveProductAction(formData: FormData) {
-  await requireAdminSession()
+  const session = await requireAdminSession()
 
   const id = String(formData.get('id') ?? '')
   if (!id) throw new Error('상품 ID가 필요합니다.')
-  await prisma.agentProduct.update({ where: { id }, data: { status: 'ARCHIVED' } })
+  const before = await prisma.agentProduct.findUnique({ where: { id } })
+  const product = await prisma.agentProduct.update({ where: { id }, data: { status: 'ARCHIVED' } })
+  await recordAdminAudit({ session, action: 'AGENT_PRODUCT_ARCHIVE', entityType: 'AgentProduct', entityId: product.id, beforeData: before, afterData: product })
   revalidatePath('/admin/products')
 }
 
 export async function createReleaseAction(formData: FormData) {
-  await requireAdminSession()
+  const session = await requireAdminSession()
 
   const parsed = createReleaseSchema.safeParse({
     agentProductId: formData.get('agentProductId'),
@@ -128,7 +136,7 @@ export async function createReleaseAction(formData: FormData) {
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? '릴리즈 입력값이 올바르지 않습니다.')
 
   const { installerFile, isLatest, ...releaseData } = parsed.data
-  await prisma.$transaction(async (tx) => {
+  const release = await prisma.$transaction(async (tx) => {
     if (isLatest) {
       await tx.agentRelease.updateMany({
         where: { agentProductId: releaseData.agentProductId, platform: releaseData.platform },
@@ -136,20 +144,23 @@ export async function createReleaseAction(formData: FormData) {
       })
     }
 
-    await tx.agentRelease.create({
+    return tx.agentRelease.create({
       data: {
         ...releaseData,
         isLatest,
         installerFile: { create: { ...installerFile!, platform: releaseData.platform } },
       },
+      include: { installerFile: true },
     })
   })
+
+  await recordAdminAudit({ session, action: 'AGENT_RELEASE_CREATE', entityType: 'AgentRelease', entityId: release.id, afterData: release })
 
   revalidatePath('/admin/releases')
 }
 
 export async function updateReleaseAction(formData: FormData) {
-  await requireAdminSession()
+  const session = await requireAdminSession()
 
   const id = String(formData.get('id') ?? '')
   if (!id) throw new Error('릴리즈 ID가 필요합니다.')
@@ -167,7 +178,7 @@ export async function updateReleaseAction(formData: FormData) {
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? '릴리즈 입력값이 올바르지 않습니다.')
 
   const { isLatest, ...rest } = parsed.data
-  await prisma.$transaction(async (tx) => {
+  const { before, release } = await prisma.$transaction(async (tx) => {
     const current = await tx.agentRelease.findUnique({ where: { id } })
     if (!current) throw new Error('릴리즈를 찾을 수 없습니다.')
 
@@ -181,23 +192,28 @@ export async function updateReleaseAction(formData: FormData) {
       })
     }
 
-    await tx.agentRelease.update({ where: { id }, data: { ...rest, isLatest } })
+    const release = await tx.agentRelease.update({ where: { id }, data: { ...rest, isLatest } })
+    return { before: current, release }
   })
+
+  await recordAdminAudit({ session, action: 'AGENT_RELEASE_UPDATE', entityType: 'AgentRelease', entityId: release.id, beforeData: before, afterData: release })
 
   revalidatePath('/admin/releases')
 }
 
 export async function archiveReleaseAction(formData: FormData) {
-  await requireAdminSession()
+  const session = await requireAdminSession()
 
   const id = String(formData.get('id') ?? '')
   if (!id) throw new Error('릴리즈 ID가 필요합니다.')
-  await prisma.agentRelease.update({ where: { id }, data: { status: 'ARCHIVED', isLatest: false } })
+  const before = await prisma.agentRelease.findUnique({ where: { id } })
+  const release = await prisma.agentRelease.update({ where: { id }, data: { status: 'ARCHIVED', isLatest: false } })
+  await recordAdminAudit({ session, action: 'AGENT_RELEASE_ARCHIVE', entityType: 'AgentRelease', entityId: release.id, beforeData: before, afterData: release })
   revalidatePath('/admin/releases')
 }
 
 export async function issueInstallCodeAction(formData: FormData) {
-  await requireAdminSession()
+  const session = await requireAdminSession()
 
   const parsed = issueInstallCodeSchema.safeParse({
     purchaseId: formData.get('purchaseId'),
@@ -211,7 +227,7 @@ export async function issueInstallCodeAction(formData: FormData) {
   const block = () => Math.random().toString(36).slice(2, 6).toUpperCase()
   const code = `AIL-${block()}-${block()}-${block()}`
 
-  await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const purchase = await tx.purchase.findUnique({ where: { id: parsed.data.purchaseId } })
     if (!purchase?.agentProductId) throw new Error('유효한 구매 내역을 찾을 수 없습니다.')
 
@@ -226,7 +242,7 @@ export async function issueInstallCodeAction(formData: FormData) {
       },
     })
 
-    await tx.license.create({
+    const license = await tx.license.create({
       data: {
         userId: purchase.userId,
         agentProductId: purchase.agentProductId,
@@ -236,22 +252,28 @@ export async function issueInstallCodeAction(formData: FormData) {
         endsAt: parsed.data.expiresAt,
       },
     })
+
+    return { installCode, license }
   })
+
+  await recordAdminAudit({ session, action: 'INSTALL_CODE_ISSUE', entityType: 'InstallCode', entityId: result.installCode.id, afterData: result })
 
   revalidatePath('/admin/licenses')
 }
 
 export async function revokeInstallCodeAction(formData: FormData) {
-  await requireAdminSession()
+  const session = await requireAdminSession()
 
   const id = String(formData.get('id') ?? '')
   if (!id) throw new Error('설치코드 ID가 필요합니다.')
-  await prisma.installCode.update({ where: { id }, data: { status: 'REVOKED', revokedAt: new Date() } })
+  const before = await prisma.installCode.findUnique({ where: { id } })
+  const installCode = await prisma.installCode.update({ where: { id }, data: { status: 'REVOKED', revokedAt: new Date() } })
+  await recordAdminAudit({ session, action: 'INSTALL_CODE_REVOKE', entityType: 'InstallCode', entityId: installCode.id, beforeData: before, afterData: installCode })
   revalidatePath('/admin/licenses')
 }
 
 export async function updateLicenseStatusAction(formData: FormData) {
-  await requireAdminSession()
+  const session = await requireAdminSession()
 
   const id = String(formData.get('id') ?? '')
   if (!id) throw new Error('라이선스 ID가 필요합니다.')
@@ -259,7 +281,9 @@ export async function updateLicenseStatusAction(formData: FormData) {
   const parsed = updateLicenseSchema.safeParse({ status: formData.get('status') })
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? '라이선스 입력값이 올바르지 않습니다.')
 
-  await prisma.license.update({ where: { id }, data: parsed.data })
+  const before = await prisma.license.findUnique({ where: { id } })
+  const license = await prisma.license.update({ where: { id }, data: parsed.data })
+  await recordAdminAudit({ session, action: 'LICENSE_UPDATE', entityType: 'License', entityId: license.id, beforeData: before, afterData: license })
   revalidatePath('/admin/licenses')
 }
 

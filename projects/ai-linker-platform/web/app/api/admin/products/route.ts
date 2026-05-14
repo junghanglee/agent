@@ -1,5 +1,6 @@
-import { assertAdminApiSession } from '@/lib/admin-auth'
+import { assertAdminApiSession, requireAdminApiSession } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
+import { recordAdminAudit } from '@/lib/admin-audit'
 import { createProductSchema } from '@/lib/admin-validation'
 import { fail, ok, serializeForJson, validationFail } from '@/lib/api-response'
 
@@ -18,8 +19,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const authError = await assertAdminApiSession()
-  if (authError) return authError
+  const { session, response } = await requireAdminApiSession()
+  if (response) return response
 
   const parsed = createProductSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return validationFail(parsed.error)
@@ -31,6 +32,14 @@ export async function POST(request: Request) {
         purposeTags: JSON.stringify(parsed.data.purposeTags),
         supportedPlatforms: JSON.stringify(parsed.data.supportedPlatforms),
       },
+    })
+
+    await recordAdminAudit({
+      session,
+      action: 'AGENT_PRODUCT_CREATE',
+      entityType: 'AgentProduct',
+      entityId: product.id,
+      afterData: product,
     })
 
     return ok(serializeForJson(product), { status: 201 })
