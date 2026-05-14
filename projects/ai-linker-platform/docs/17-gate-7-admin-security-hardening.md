@@ -59,7 +59,31 @@ npm run admin:hash-password
 생성된 원본 비밀번호는 다시 확인할 수 없으므로 안전한 곳에 따로 보관해야 합니다.
 ```
 
-## 5. 로그인 오류 처리
+## 5. 로그인 실패 횟수 제한
+
+관리자 로그인 실패가 15분 안에 5회 이상 발생하면 추가 로그인을 잠시 차단합니다.
+
+기준:
+
+```text
+이메일 + 요청 IP
+```
+
+실패 기록은 `AuditLog`에 남습니다.
+
+```text
+action: ADMIN_LOGIN_FAILED
+entityType: AdminUser
+reason: email | password | rate_limited
+```
+
+사용자에게는 아래 메시지가 표시됩니다.
+
+```text
+로그인 실패가 너무 많습니다. 15분 뒤 다시 시도하세요.
+```
+
+## 6. 로그인 오류 처리
 
 운영 환경변수가 잘못되어 있으면 관리자 로그인 화면에 설정 오류 안내가 표시됩니다.
 
@@ -69,21 +93,21 @@ npm run admin:hash-password
 
 서버 로그에는 구체적인 설정 오류가 남습니다.
 
-## 6. 검증
+## 7. 검증
 
 아래 검증을 통과했습니다.
 
 ```bash
 npm run lint
 npm run admin:hash-password -- "test-password"
+npm run build
 ```
 
-## 7. 다음 작업 후보
+## 8. 다음 작업 후보
 
 ```text
-1. 로그인 실패 횟수 제한
-2. 관리자 mutation 전체 AuditLog 기록 강화
-3. CSRF 방어 강화
-4. 관리자별 권한 분리
-5. 2FA/OTP 추가
+1. 관리자 mutation 전체 AuditLog 기록 강화
+2. CSRF 방어 강화
+3. 관리자별 권한 분리
+4. 2FA/OTP 추가
 ```

@@ -9,6 +9,7 @@ function errorMessage(error?: string) {
   if (error === 'missing') return '이메일과 비밀번호를 입력하세요.'
   if (error === 'invalid') return '관리자 계정 정보가 올바르지 않습니다.'
   if (error === 'config') return '관리자 로그인 환경변수 설정이 필요합니다. 운영 배포용 비밀번호/세션 키를 확인하세요.'
+  if (error === 'rate_limited') return '로그인 실패가 너무 많습니다. 15분 뒤 다시 시도하세요.'
   return null
 }
 

@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createHash, createHmac, timingSafeEqual } from 'crypto'
 import { prisma } from '@/lib/prisma'
@@ -6,6 +6,8 @@ import { prisma } from '@/lib/prisma'
 const ADMIN_SESSION_COOKIE = 'ai_linker_admin_session'
 const SESSION_TTL_MS = 1000 * 60 * 60 * 8
 const MIN_SECRET_LENGTH = 32
+const LOGIN_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000
+const LOGIN_RATE_LIMIT_MAX_ATTEMPTS = 5
 const PLACEHOLDER_VALUES = new Set([
   'replace-with-strong-random-key',
   'replace-with-strong-random-session-secret',
@@ -49,6 +51,46 @@ function getAdminPasswordHash() {
 
 export function hashAdminPassword(password: string) {
   return createHash('sha256').update(password).digest('hex')
+}
+
+function normalizeAdminEmail(email: string) {
+  return email.trim().toLowerCase()
+}
+
+async function getRequestIp() {
+  const headerStore = await headers()
+  const forwardedFor = headerStore.get('x-forwarded-for')
+  if (forwardedFor) return forwardedFor.split(',')[0]?.trim() ?? null
+
+  return headerStore.get('x-real-ip') ?? headerStore.get('cf-connecting-ip') ?? null
+}
+
+async function getRecentFailedLoginCount(email: string, ipAddress: string | null) {
+  const since = new Date(Date.now() - LOGIN_RATE_LIMIT_WINDOW_MS)
+  const identifier = ipAddress ? `${email}:${ipAddress}` : email
+
+  return prisma.auditLog.count({
+    where: {
+      action: 'ADMIN_LOGIN_FAILED',
+      entityType: 'AdminUser',
+      entityId: identifier,
+      createdAt: { gte: since },
+    },
+  })
+}
+
+async function recordFailedLogin(email: string, ipAddress: string | null, reason: 'email' | 'password' | 'rate_limited') {
+  const identifier = ipAddress ? `${email}:${ipAddress}` : email
+
+  await prisma.auditLog.create({
+    data: {
+      action: 'ADMIN_LOGIN_FAILED',
+      entityType: 'AdminUser',
+      entityId: identifier,
+      ipAddress: ipAddress ?? undefined,
+      afterData: JSON.stringify({ email, reason }),
+    },
+  })
 }
 
 function safeCompare(a: string, b: string) {
@@ -138,11 +180,28 @@ export async function validateAdminLogin(email: string, password: string) {
     throw new Error('Production admin email must be set with ADMIN_EMAIL.')
   }
 
+  const normalizedEmail = normalizeAdminEmail(email)
+  const normalizedConfiguredEmail = normalizeAdminEmail(configuredEmail)
+  const ipAddress = await getRequestIp()
+  const failedCount = await getRecentFailedLoginCount(normalizedEmail, ipAddress)
+
+  if (failedCount >= LOGIN_RATE_LIMIT_MAX_ATTEMPTS) {
+    await recordFailedLogin(normalizedEmail, ipAddress, 'rate_limited')
+    return { error: 'rate_limited' as const }
+  }
+
   const configuredPasswordHash = getAdminPasswordHash()
   const submittedPasswordHash = hashAdminPassword(password)
 
-  if (email.trim().toLowerCase() !== configuredEmail.trim().toLowerCase()) return null
-  if (!safeCompare(submittedPasswordHash, configuredPasswordHash)) return null
+  if (normalizedEmail !== normalizedConfiguredEmail) {
+    await recordFailedLogin(normalizedEmail, ipAddress, 'email')
+    return null
+  }
+
+  if (!safeCompare(submittedPasswordHash, configuredPasswordHash)) {
+    await recordFailedLogin(normalizedEmail, ipAddress, 'password')
+    return null
+  }
 
   const admin = await prisma.adminUser.upsert({
     where: { email: configuredEmail },

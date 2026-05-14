@@ -23,6 +23,10 @@ export async function adminLoginAction(formData: FormData) {
     redirect('/admin/login?error=invalid')
   }
 
+  if ('error' in admin && admin.error === 'rate_limited') {
+    redirect('/admin/login?error=rate_limited')
+  }
+
   await createAdminSession(admin.id)
   redirect('/admin')
 }

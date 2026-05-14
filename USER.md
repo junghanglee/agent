@@ -11,7 +11,7 @@ _Learn about the person you're helping. Update this as you go._
 ## Context
 
 - 사용자는 비개발자이며, 바이브코딩 방식으로 다양한 프로젝트 개발을 진행하려고 함.
-- 기본 저장소는 GitHub `choigangcheolmin-sudo/projectA`와 연결됨.
+- 기본 저장소는 GitHub `junghanglee/agent` (`https://github.com/junghanglee/agent.git`)와 연결됨. 이전 `choigangcheolmin-sudo/projectA` 메모는 더 이상 기준으로 사용하지 않음.
 
 ---
 
