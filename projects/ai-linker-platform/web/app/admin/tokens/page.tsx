@@ -1,5 +1,6 @@
 import { CreditAdjustmentButton } from '@/components/admin/credit-adjustment-actions'
 import { StatusBadge } from '@/components/admin/status-badge'
+import { WalletStatusButton } from '@/components/admin/wallet-actions'
 import { StatCard } from '@/components/admin/stat-card'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -170,6 +171,7 @@ export default async function TokensPage({ searchParams }: TokensPageProps) {
                               customers={creditTargets}
                               target={{ userId: wallet.user.id, name: wallet.user.name, email: wallet.user.email, balanceUsd: wallet.balanceUsd }}
                             />
+                            {wallet.status === 'ACTIVE' ? <WalletStatusButton userId={wallet.user.id} status="SUSPENDED" /> : <WalletStatusButton userId={wallet.user.id} status="ACTIVE" />}
                           </td>
                         )}
                       </tr>

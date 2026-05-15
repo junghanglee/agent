@@ -1,10 +1,10 @@
 'use client'
 
-import { CheckCircle2 } from 'lucide-react'
+import { Ban, CheckCircle2, RotateCcw, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { approvePaymentAction } from '@/lib/payment-actions'
+import { approvePaymentAction, updatePaymentStatusAction } from '@/lib/payment-actions'
 
 type PurchaseOption = {
   id: string
@@ -49,6 +49,26 @@ export function ApprovePaymentButton({ purchases }: { purchases: PurchaseOption[
         </form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+export function PaymentStatusButton({ paymentId, status }: { paymentId: string; status: 'FAILED' | 'CANCELLED' | 'REFUNDED' }) {
+  const config = {
+    FAILED: { label: '실패 처리', className: 'text-rose-600 hover:bg-rose-50', icon: XCircle, reason: '관리자 수동 실패 처리' },
+    CANCELLED: { label: '취소 처리', className: 'text-muted-foreground hover:bg-muted', icon: Ban, reason: '관리자 수동 취소 처리' },
+    REFUNDED: { label: '환불 처리', className: 'text-amber-600 hover:bg-amber-50', icon: RotateCcw, reason: '관리자 수동 환불 처리' },
+  }[status]
+  const Icon = config.icon
+
+  return (
+    <form action={updatePaymentStatusAction}>
+      <input type="hidden" name="paymentId" value={paymentId} />
+      <input type="hidden" name="status" value={status} />
+      <input type="hidden" name="reason" value={config.reason} />
+      <button className={`p-1.5 rounded transition-colors ${config.className}`} title={config.label}>
+        <Icon className="w-3.5 h-3.5" />
+      </button>
+    </form>
   )
 }
 

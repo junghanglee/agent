@@ -1,4 +1,4 @@
-import { ApprovePaymentButton } from '@/components/admin/payment-actions'
+import { ApprovePaymentButton, PaymentStatusButton } from '@/components/admin/payment-actions'
 import { StatusBadge } from '@/components/admin/status-badge'
 import { StatCard } from '@/components/admin/stat-card'
 import { Input } from '@/components/ui/input'
@@ -139,6 +139,7 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
                 <th className="text-center px-4 py-3 font-medium text-muted-foreground">상태</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">결제일시</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Payment Key</th>
+                {canManagePayments && <th className="text-center px-4 py-3 font-medium text-muted-foreground">액션</th>}
               </tr>
             </thead>
             <tbody>
@@ -159,11 +160,20 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{formatDate(payment.paidAt ?? payment.createdAt)}</td>
                   <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground">{payment.paymentKey ?? '—'}</td>
+                  {canManagePayments && (
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-1">
+                        {payment.status !== 'PAID' && payment.status !== 'REFUNDED' && <PaymentStatusButton paymentId={payment.id} status="FAILED" />}
+                        {payment.status !== 'PAID' && payment.status !== 'REFUNDED' && <PaymentStatusButton paymentId={payment.id} status="CANCELLED" />}
+                        {payment.status === 'PAID' && <PaymentStatusButton paymentId={payment.id} status="REFUNDED" />}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
               {payments.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-muted-foreground">조건에 맞는 결제 내역이 없습니다.</td>
+                  <td colSpan={canManagePayments ? 9 : 8} className="px-4 py-10 text-center text-sm text-muted-foreground">조건에 맞는 결제 내역이 없습니다.</td>
                 </tr>
               )}
             </tbody>

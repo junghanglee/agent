@@ -8,6 +8,7 @@ export const licenseStatusSchema = z.enum(['ACTIVE', 'EXPIRED', 'REVOKED', 'SUSP
 export const adminRoleSchema = z.enum(['ADMIN', 'SUPER_ADMIN'])
 export const adminUserStatusSchema = z.enum(['ACTIVE', 'PENDING', 'SUSPENDED', 'DELETED'])
 export const creditAdjustmentTypeSchema = z.enum(['GRANT', 'DEDUCT'])
+export const walletStatusSchema = z.enum(['ACTIVE', 'SUSPENDED'])
 export const providerStatusSchema = z.enum(['ACTIVE', 'WARNING', 'CRITICAL', 'DISABLED'])
 export const paymentProviderEventStatusSchema = z.enum(['PENDING', 'PAID', 'FAILED', 'CANCELLED', 'REFUNDED'])
 
@@ -87,6 +88,24 @@ export const adjustCreditSchema = z.object({
   userId: z.string().trim().min(1),
   type: creditAdjustmentTypeSchema,
   amountUsd: z.coerce.number().positive().max(100000),
+  reason: z.string().trim().min(2).max(500),
+})
+
+export const updateWalletStatusSchema = z.object({
+  userId: z.string().trim().min(1),
+  status: walletStatusSchema,
+  reason: z.string().trim().min(2).max(500),
+})
+
+export const updateUserStatusSchema = z.object({
+  userId: z.string().trim().min(1),
+  status: z.enum(['ACTIVE', 'SUSPENDED']),
+  reason: z.string().trim().min(2).max(500),
+})
+
+export const updatePaymentStatusSchema = z.object({
+  paymentId: z.string().trim().min(1),
+  status: z.enum(['FAILED', 'CANCELLED', 'REFUNDED']),
   reason: z.string().trim().min(2).max(500),
 })
 
