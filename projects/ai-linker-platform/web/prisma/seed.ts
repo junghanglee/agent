@@ -76,19 +76,28 @@ async function main() {
     },
   })
 
-  const purchase = await prisma.purchase.create({
-    data: {
-      userId: user.id,
-      agentProductId: hermes.id,
-      platform: Platform.WINDOWS,
-      status: PurchaseStatus.PAID,
-      totalAmount: 89000,
-      currency: 'KRW',
-    },
-  })
+  let installCode = await prisma.installCode.findUnique({ where: { code: 'AIL-DEMO-0001' } })
+  let purchase = installCode
+    ? await prisma.purchase.findUniqueOrThrow({ where: { id: installCode.purchaseId } })
+    : null
 
-  await prisma.payment.create({
-    data: {
+  if (!purchase) {
+    purchase = await prisma.purchase.create({
+      data: {
+        userId: user.id,
+        agentProductId: hermes.id,
+        platform: Platform.WINDOWS,
+        status: PurchaseStatus.PAID,
+        totalAmount: 89000,
+        currency: 'KRW',
+      },
+    })
+  }
+
+  await prisma.payment.upsert({
+    where: { paymentKey: `mock-${purchase.id}` },
+    update: { status: PaymentStatus.PAID, paidAt: new Date() },
+    create: {
       purchaseId: purchase.id,
       provider: 'mock',
       paymentKey: `mock-${purchase.id}`,
@@ -100,8 +109,10 @@ async function main() {
     },
   })
 
-  const installCode = await prisma.installCode.create({
-    data: {
+  installCode = await prisma.installCode.upsert({
+    where: { code: 'AIL-DEMO-0001' },
+    update: { status: InstallCodeStatus.ACTIVE, maxActivations: 2 },
+    create: {
       purchaseId: purchase.id,
       userId: user.id,
       code: 'AIL-DEMO-0001',
@@ -110,8 +121,10 @@ async function main() {
     },
   })
 
-  await prisma.license.create({
-    data: {
+  await prisma.license.upsert({
+    where: { installCodeId: installCode.id },
+    update: { status: LicenseStatus.ACTIVE },
+    create: {
       userId: user.id,
       agentProductId: hermes.id,
       purchaseId: purchase.id,
@@ -142,10 +155,10 @@ async function main() {
 
   const openRouter = await prisma.lLMProvider.upsert({
     where: { name: 'OpenRouter' },
-    update: {},
+    update: { type: 'openrouter', status: ProviderStatus.ACTIVE },
     create: {
       name: 'OpenRouter',
-      baseUrl: 'https://openrouter.ai/api/v1',
+      type: 'openrouter',
       status: ProviderStatus.ACTIVE,
     },
   })

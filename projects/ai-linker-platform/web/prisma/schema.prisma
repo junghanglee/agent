@@ -353,7 +353,7 @@ model UsageEvent {
 
 model LLMProvider {
   id              String             @id @default(cuid())
-  name            String
+  name            String             @unique
   type            String
   status          ProviderStatus     @default(ACTIVE)
   createdAt       DateTime           @default(now())
@@ -378,30 +378,32 @@ model LLMAccount {
 }
 
 model LLMModel {
-  id                   String        @id @default(cuid())
+  id                   String         @id @default(cuid())
   providerId           String
   modelName            String
   displayName          String
-  inputCostPer1M       Decimal       @default(0)
-  outputCostPer1M      Decimal       @default(0)
-  saleInputPricePer1M  Decimal       @default(0)
-  saleOutputPricePer1M Decimal       @default(0)
+  inputCostPer1M       Decimal        @default(0)
+  outputCostPer1M      Decimal        @default(0)
+  saleInputPricePer1M  Decimal        @default(0)
+  saleOutputPricePer1M Decimal        @default(0)
   status               ProviderStatus @default(ACTIVE)
-  provider             LLMProvider   @relation(fields: [providerId], references: [id])
+  provider             LLMProvider    @relation(fields: [providerId], references: [id])
   usageEvents          UsageEvent[]
+
+  @@unique([providerId, modelName])
 }
 
 model LLMRoutingPolicy {
-  id                 String        @id @default(cuid())
-  name               String
+  id                 String         @id @default(cuid())
+  name               String         @unique
   strategy           String
-  allowedProviderIds String        @default("[]")
-  allowedModelIds    String        @default("[]")
+  allowedProviderIds String         @default("[]")
+  allowedModelIds    String         @default("[]")
   status             ProviderStatus @default(ACTIVE)
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
   providerId         String?
-  provider           LLMProvider?  @relation(fields: [providerId], references: [id])
+  provider           LLMProvider?   @relation(fields: [providerId], references: [id])
 }
 
 model SkillProduct {
