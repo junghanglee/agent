@@ -1,9 +1,9 @@
 import { StatusBadge } from '@/components/admin/status-badge'
-import { ReleaseArchiveButton, ReleaseCreateButton, ReleaseEditButton } from '@/components/admin/release-actions'
+import { ReleaseArchiveButton, ReleaseCreateButton, ReleaseDownloadButton, ReleaseEditButton, ReleasePublishToggleButton } from '@/components/admin/release-actions'
 import { requireAdminPagePermission } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
 import { formatBytes, formatDate, statusToBadge } from '@/lib/admin-format'
-import { Download, Globe, EyeOff, Star } from 'lucide-react'
+import { Star } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
@@ -64,7 +64,7 @@ export default async function ReleasesPage() {
                   <td className="px-4 py-3 text-center">{release.isLatest && <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700 text-[11px] font-medium border border-violet-200"><Star className="w-2.5 h-2.5" />최신</span>}</td>
                   <td className="px-4 py-3 text-center"><StatusBadge status={statusToBadge(release.status)} /></td>
                   <td className="px-4 py-3 text-muted-foreground">{formatDate(release.createdAt)}</td>
-                  <td className="px-4 py-3"><div className="flex items-center justify-center gap-1"><button className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground" title="다운로드 테스트"><Download className="w-3.5 h-3.5" /></button><button className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground" title={release.status === 'PUBLISHED' ? '비공개' : '공개'}>{release.status === 'PUBLISHED' ? <EyeOff className="w-3.5 h-3.5" /> : <Globe className="w-3.5 h-3.5" />}</button><ReleaseEditButton products={products} release={{ id: release.id, agentProductId: release.agentProductId, platform: release.platform, version: release.version, releaseNotes: release.releaseNotes, status: release.status, isLatest: release.isLatest, isRequired: release.isRequired }} /><ReleaseArchiveButton id={release.id} /></div></td>
+                  <td className="px-4 py-3"><div className="flex items-center justify-center gap-1"><ReleaseDownloadButton url={release.installerFile?.downloadUrl} /><ReleasePublishToggleButton id={release.id} status={release.status} /><ReleaseEditButton products={products} release={{ id: release.id, agentProductId: release.agentProductId, platform: release.platform, version: release.version, releaseNotes: release.releaseNotes, status: release.status, isLatest: release.isLatest, isRequired: release.isRequired }} /><ReleaseArchiveButton id={release.id} /></div></td>
                 </tr>
               ))}
             </tbody>

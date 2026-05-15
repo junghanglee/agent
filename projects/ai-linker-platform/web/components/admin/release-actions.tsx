@@ -1,12 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { Archive, Edit2, Upload } from 'lucide-react'
+import { Archive, Download, Edit2, EyeOff, Globe, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { archiveReleaseAction, createReleaseAction, updateReleaseAction } from '@/lib/admin-actions'
+import { archiveReleaseAction, createReleaseAction, publishReleaseAction, unpublishReleaseAction, updateReleaseAction } from '@/lib/admin-actions'
 
 type ProductOption = { id: string; name: string }
 type ReleaseValue = {
@@ -33,6 +33,26 @@ export function ReleaseEditButton({ release, products }: { release: ReleaseValue
 
 export function ReleaseArchiveButton({ id }: { id: string }) {
   return <form action={archiveReleaseAction}><input type="hidden" name="id" value={id} /><button className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-rose-600" title="릴리즈 보관"><Archive className="w-3.5 h-3.5" /></button></form>
+}
+
+export function ReleaseDownloadButton({ url }: { url?: string | null }) {
+  if (!url) return <button type="button" disabled className="p-1.5 rounded text-muted-foreground/40 cursor-not-allowed" title="다운로드 URL 없음"><Download className="w-3.5 h-3.5" /></button>
+
+  return <a href={url} target="_blank" rel="noreferrer" className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground" title="다운로드 테스트"><Download className="w-3.5 h-3.5" /></a>
+}
+
+export function ReleasePublishToggleButton({ id, status }: { id: string; status: string }) {
+  const isPublished = status === 'PUBLISHED'
+  const action = isPublished ? unpublishReleaseAction : publishReleaseAction
+
+  return (
+    <form action={action}>
+      <input type="hidden" name="id" value={id} />
+      <button className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground" title={isPublished ? '비공개 전환' : '공개 전환'}>
+        {isPublished ? <EyeOff className="w-3.5 h-3.5" /> : <Globe className="w-3.5 h-3.5" />}
+      </button>
+    </form>
+  )
 }
 
 function ReleaseDialog({ mode, release, products }: { mode: 'create' | 'edit'; release?: ReleaseValue; products: ProductOption[] }) {

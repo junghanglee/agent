@@ -34,7 +34,7 @@ export default async function LicensesPage({ searchParams }: { searchParams: Pro
       orderBy: { createdAt: 'desc' },
       include: { user: { select: { name: true, email: true } }, agentProduct: { select: { name: true } }, installCode: { include: { purchase: true } }, deviceActivations: true },
     }),
-    prisma.purchase.findMany({ where: { status: 'PAID', agentProductId: { not: null } }, orderBy: { createdAt: 'desc' }, take: 20, include: { user: true, agentProduct: true } }),
+    prisma.purchase.findMany({ where: { status: 'PAID', agentProductId: { not: null }, installCodes: { none: {} } }, orderBy: { createdAt: 'desc' }, take: 20, include: { user: true, agentProduct: true } }),
   ])
 
   const purchaseOptions = paidPurchases.map((purchase) => ({ id: purchase.id, label: `${purchase.user.name} · ${purchase.agentProduct?.name ?? '상품 없음'} · ${formatDate(purchase.createdAt)}` }))
@@ -44,7 +44,7 @@ export default async function LicensesPage({ searchParams }: { searchParams: Pro
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-foreground">설치코드 / 라이선스</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">설치 코드 {installCodes.length}개 · 라이선스 {licenses.length}개 — 발급/상태 변경 가능</p>
+          <p className="text-sm text-muted-foreground mt-0.5">설치 코드 {installCodes.length}개 · 라이선스 {licenses.length}개 · 미발급 구매 {paidPurchases.length}개 — 발급/상태 변경 가능</p>
         </div>
         <IssueInstallCodeButton purchases={purchaseOptions} />
       </div>
@@ -55,7 +55,7 @@ export default async function LicensesPage({ searchParams }: { searchParams: Pro
       </form>
 
       <Tabs defaultValue="codes">
-        <TabsList><TabsTrigger value="codes" className="text-xs">설치코드</TabsTrigger><TabsTrigger value="licenses" className="text-xs">라이선스</TabsTrigger><TabsTrigger value="issuable" className="text-xs">발급 가능 구매</TabsTrigger></TabsList>
+        <TabsList><TabsTrigger value="codes" className="text-xs">설치코드</TabsTrigger><TabsTrigger value="licenses" className="text-xs">라이선스</TabsTrigger><TabsTrigger value="issuable" className="text-xs">미발급 구매</TabsTrigger></TabsList>
 
         <TabsContent value="codes" className="mt-4">
           <div className="bg-card rounded-lg border border-border overflow-hidden"><div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="border-b border-border bg-muted/40"><th className="text-left px-4 py-3 font-medium text-muted-foreground">코드</th><th className="text-left px-4 py-3 font-medium text-muted-foreground">고객</th><th className="text-left px-4 py-3 font-medium text-muted-foreground">상품</th><th className="text-center px-4 py-3 font-medium text-muted-foreground">OS</th><th className="text-center px-4 py-3 font-medium text-muted-foreground">상태</th><th className="text-center px-4 py-3 font-medium text-muted-foreground">활성화</th><th className="text-left px-4 py-3 font-medium text-muted-foreground">발급일</th><th className="text-left px-4 py-3 font-medium text-muted-foreground">만료일</th><th className="text-center px-4 py-3 font-medium text-muted-foreground">액션</th></tr></thead><tbody>{installCodes.map((item) => (<tr key={item.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors"><td className="px-4 py-3 font-mono text-muted-foreground">{item.code}</td><td className="px-4 py-3"><p className="font-medium">{item.user.name}</p><p className="text-muted-foreground mt-0.5">{item.user.email}</p></td><td className="px-4 py-3 text-muted-foreground">{item.purchase.agentProduct?.name ?? '—'}</td><td className="px-4 py-3 text-center"><PlatformIcon platform={item.purchase.platform} /></td><td className="px-4 py-3 text-center"><StatusBadge status={statusToBadge(item.status)} /></td><td className="px-4 py-3 text-center font-medium tabular-nums">{item.usedActivations}/{item.maxActivations}</td><td className="px-4 py-3 text-muted-foreground">{formatDate(item.createdAt)}</td><td className="px-4 py-3 text-muted-foreground">{formatDate(item.expiresAt)}</td><td className="px-4 py-3"><div className="flex items-center justify-center gap-1"><CopyInstallCodeButton code={item.code} /><RevokeInstallCodeButton id={item.id} /></div></td></tr>))}</tbody></table></div></div>
