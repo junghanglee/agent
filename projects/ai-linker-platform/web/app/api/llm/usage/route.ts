@@ -15,9 +15,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: 'USER_ID_AND_REQUEST_ID_REQUIRED' }, { status: 400 })
   }
 
+  const licenseId = typeof body?.licenseId === 'string' ? body.licenseId : undefined
+  const agentProductId = typeof body?.agentProductId === 'string' ? body.agentProductId : undefined
+
   const wallet = await prisma.creditWallet.findUnique({ where: { userId } })
   if (!wallet) {
     return NextResponse.json({ ok: false, error: 'WALLET_NOT_FOUND' }, { status: 404 })
+  }
+  if (wallet.status !== 'ACTIVE') {
+    return NextResponse.json({ ok: false, error: 'WALLET_NOT_ACTIVE' }, { status: 403 })
+  }
+
+  if (licenseId) {
+    const license = await prisma.license.findFirst({ where: { id: licenseId, userId, status: 'ACTIVE' } })
+    if (!license) return NextResponse.json({ ok: false, error: 'ACTIVE_LICENSE_REQUIRED' }, { status: 403 })
   }
 
   const currentBalance = Number(wallet.balanceUsd)
@@ -34,6 +45,8 @@ export async function POST(request: NextRequest) {
         outputTokens,
         costUsd,
         chargedUsd,
+        licenseId,
+        agentProductId,
       },
     })
 

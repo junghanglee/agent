@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     const result = await prisma.$transaction(async (tx) => {
       const installCode = await tx.installCode.findUnique({
         where: { code },
-        include: { license: true, purchase: { include: { agentProduct: true } }, user: true },
+        include: { license: true, purchase: { include: { agentProduct: true } }, user: { include: { creditWallet: true } } },
       })
 
       if (!installCode) return { status: 404 as const, body: { ok: false, error: 'INSTALL_CODE_NOT_FOUND' } }
@@ -91,7 +91,13 @@ export async function POST(request: NextRequest) {
           license: installCode.license,
           product: installCode.purchase.agentProduct,
           user: { id: installCode.user.id, name: installCode.user.name, email: installCode.user.email },
-          serviceAccess: { llmEnabled: true, requiresTokenBalance: true },
+          serviceAccess: {
+            llmEnabled: Number(installCode.user.creditWallet?.balanceUsd ?? 0) > 0,
+            requiresTokenBalance: true,
+            walletStatus: installCode.user.creditWallet?.status ?? 'MISSING',
+            balanceUsd: installCode.user.creditWallet?.balanceUsd ?? '0',
+            reason: Number(installCode.user.creditWallet?.balanceUsd ?? 0) > 0 ? 'READY' : 'INSUFFICIENT_CREDIT',
+          },
         },
       }
     })
