@@ -18,6 +18,13 @@ type ReleaseValue = {
   status?: string
   isLatest?: boolean
   isRequired?: boolean
+  installerFile?: {
+    fileName?: string | null
+    storageKey?: string | null
+    downloadUrl?: string | null
+    sizeBytes?: string | number | bigint | null
+    sha256?: string | null
+  } | null
 }
 
 const platforms = ['WINDOWS', 'MACOS', 'IOS', 'ANDROID', 'WEB']
@@ -75,7 +82,7 @@ function ReleaseDialog({ mode, release, products }: { mode: 'create' | 'edit'; r
             <div><label className="text-xs font-medium block mb-1.5">상태</label><select name="status" defaultValue={release?.status ?? 'DRAFT'} className="w-full h-9 bg-background border border-border rounded-md px-3 text-sm">{statuses.map((status) => <option key={status} value={status}>{status}</option>)}</select></div>
           </div>
           <div><label className="text-xs font-medium block mb-1.5">릴리즈 노트</label><Textarea name="releaseNotes" defaultValue={release?.releaseNotes ?? ''} /></div>
-          {mode === 'create' && <div className="grid grid-cols-2 gap-3"><Field name="fileName" label="파일명" required /><Field name="storageKey" label="스토리지 키" required /><Field name="downloadUrl" label="다운로드 URL" required /><Field name="sizeBytes" label="파일 크기(bytes)" type="number" defaultValue={0} required /><Field name="sha256" label="SHA256" required /></div>}
+          <div className="grid grid-cols-2 gap-3"><Field name="fileName" label="파일명" defaultValue={release?.installerFile?.fileName ?? ''} required={mode === 'create'} /><Field name="storageKey" label="스토리지 키" defaultValue={release?.installerFile?.storageKey ?? ''} required={mode === 'create'} /><Field name="downloadUrl" label="다운로드 URL" defaultValue={release?.installerFile?.downloadUrl ?? ''} required={mode === 'create'} /><Field name="sizeBytes" label="파일 크기(bytes)" type="number" defaultValue={release?.installerFile?.sizeBytes?.toString() ?? 0} required={mode === 'create'} /><Field name="sha256" label="SHA256" defaultValue={release?.installerFile?.sha256 ?? ''} required={mode === 'create'} /></div>
           <div className="flex gap-4"><label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isLatest" defaultChecked={release?.isLatest} />최신 릴리즈</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isRequired" defaultChecked={release?.isRequired} />필수 업데이트</label></div>
           <DialogFooter><Button type="button" variant="outline" onClick={() => setOpen(false)}>취소</Button><Button type="submit">저장</Button></DialogFooter>
         </form>

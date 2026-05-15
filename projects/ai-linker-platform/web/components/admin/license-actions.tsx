@@ -1,11 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Ban, CheckCircle, Copy, Plus, PauseCircle } from 'lucide-react'
+import { Ban, CheckCircle, Copy, Plus, PauseCircle, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { issueInstallCodeAction, revokeInstallCodeAction, updateLicenseStatusAction } from '@/lib/admin-actions'
+import { issueInstallCodeAction, reactivateInstallCodeAction, revokeInstallCodeAction, updateLicenseStatusAction } from '@/lib/admin-actions'
 
 type PurchaseOption = {
   id: string
@@ -36,6 +36,10 @@ export function CopyInstallCodeButton({ code }: { code: string }) {
 
 export function RevokeInstallCodeButton({ id }: { id: string }) {
   return <form action={revokeInstallCodeAction}><input type="hidden" name="id" value={id} /><button className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-rose-600" title="설치코드 폐기"><Ban className="w-3.5 h-3.5" /></button></form>
+}
+
+export function ReactivateInstallCodeButton({ id }: { id: string }) {
+  return <form action={reactivateInstallCodeAction}><input type="hidden" name="id" value={id} /><button className="p-1.5 rounded hover:bg-muted transition-colors text-emerald-600 hover:bg-emerald-50" title="설치코드 재활성화"><RotateCcw className="w-3.5 h-3.5" /></button></form>
 }
 
 export function LicenseActivateButton({ id }: { id: string }) {

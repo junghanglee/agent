@@ -167,6 +167,12 @@ export async function updateReleaseAction(formData: FormData) {
   const id = String(formData.get('id') ?? '')
   if (!id) throw new Error('릴리즈 ID가 필요합니다.')
 
+  const fileName = optionalString(formData.get('fileName'))
+  const storageKey = optionalString(formData.get('storageKey'))
+  const downloadUrl = optionalString(formData.get('downloadUrl'))
+  const sha256 = optionalString(formData.get('sha256'))
+  const shouldUpdateInstallerFile = Boolean(fileName || storageKey || downloadUrl || sha256)
+
   const parsed = updateReleaseSchema.safeParse({
     agentProductId: formData.get('agentProductId'),
     platform: formData.get('platform'),
@@ -175,6 +181,18 @@ export async function updateReleaseAction(formData: FormData) {
     isLatest: formData.get('isLatest') === 'on',
     isRequired: formData.get('isRequired') === 'on',
     status: formData.get('status') || 'DRAFT',
+    ...(shouldUpdateInstallerFile
+      ? {
+          installerFile: {
+            fileName,
+            storageKey,
+            downloadUrl,
+            platform: formData.get('platform'),
+            sizeBytes: formData.get('sizeBytes') || '0',
+            sha256,
+          },
+        }
+      : {}),
   })
 
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? '릴리즈 입력값이 올바르지 않습니다.')
@@ -194,18 +212,32 @@ export async function updateReleaseAction(formData: FormData) {
       })
     }
 
+    let nextInstallerFileId = installerFileId
+    if (installerFile) {
+      if (current.installerFileId) {
+        await tx.installerFile.update({
+          where: { id: current.installerFileId },
+          data: { ...installerFile, platform: installerFile.platform ?? platform },
+        })
+        nextInstallerFileId = current.installerFileId
+      } else {
+        const createdInstallerFile = await tx.installerFile.create({
+          data: { ...installerFile, platform: installerFile.platform ?? platform },
+        })
+        nextInstallerFileId = createdInstallerFile.id
+      }
+    }
+
     const release = await tx.agentRelease.update({
       where: { id },
       data: {
         ...rest,
         ...(agentProductId ? { agentProduct: { connect: { id: agentProductId } } } : {}),
-        ...(installerFile
-          ? { installerFile: { create: { ...installerFile, platform: installerFile.platform ?? platform } } }
-          : typeof installerFileId !== 'undefined'
-            ? installerFileId
-              ? { installerFile: { connect: { id: installerFileId } } }
-              : { installerFile: { disconnect: true } }
-            : {}),
+        ...(typeof nextInstallerFileId !== 'undefined'
+          ? nextInstallerFileId
+            ? { installerFile: { connect: { id: nextInstallerFileId } } }
+            : { installerFile: { disconnect: true } }
+          : {}),
         isLatest,
       },
     })
@@ -309,6 +341,17 @@ export async function revokeInstallCodeAction(formData: FormData) {
   const before = await prisma.installCode.findUnique({ where: { id } })
   const installCode = await prisma.installCode.update({ where: { id }, data: { status: 'REVOKED', revokedAt: new Date() } })
   await recordAdminAudit({ session, action: 'INSTALL_CODE_REVOKE', entityType: 'InstallCode', entityId: installCode.id, beforeData: before, afterData: installCode })
+  revalidatePath('/admin/licenses')
+}
+
+export async function reactivateInstallCodeAction(formData: FormData) {
+  const session = await requireAdminPagePermission('LICENSES_MANAGE')
+
+  const id = String(formData.get('id') ?? '')
+  if (!id) throw new Error('설치코드 ID가 필요합니다.')
+  const before = await prisma.installCode.findUnique({ where: { id } })
+  const installCode = await prisma.installCode.update({ where: { id }, data: { status: 'ACTIVE', revokedAt: null } })
+  await recordAdminAudit({ session, action: 'INSTALL_CODE_REACTIVATE', entityType: 'InstallCode', entityId: installCode.id, beforeData: before, afterData: installCode })
   revalidatePath('/admin/licenses')
 }
 
