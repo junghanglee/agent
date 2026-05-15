@@ -26,5 +26,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: false, error: 'LATEST_RELEASE_NOT_FOUND' }, { status: 404 })
   }
 
+  if (searchParams.get('download') === '1') {
+    if (!release.installerFile?.downloadUrl) {
+      return NextResponse.json({ ok: false, error: 'INSTALLER_FILE_NOT_FOUND' }, { status: 404 })
+    }
+    return NextResponse.redirect(new URL(release.installerFile.downloadUrl, request.url))
+  }
+
   return NextResponse.json({ ok: true, release })
 }

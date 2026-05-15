@@ -30,7 +30,7 @@ async function createUniqueInstallCode(tx: Tx) {
   throw new Error('INSTALL_CODE_GENERATION_FAILED')
 }
 
-async function issueLicenseForPaidPurchase(tx: Tx, purchaseId: string) {
+export async function issueLicenseForPaidPurchase(tx: Tx, purchaseId: string) {
   const purchase = await tx.purchase.findUnique({ where: { id: purchaseId }, include: { installCodes: true, licenses: true } })
   if (!purchase?.agentProductId) return null
   if (purchase.installCodes.length > 0 || purchase.licenses.length > 0) return null

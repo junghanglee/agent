@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { Header } from '@/components/layout/header'
 import { Footer } from '@/components/layout/footer'
 import { Button } from '@/components/ui/button'
@@ -22,12 +23,59 @@ function formatDate(value?: Date | string | null) {
   return new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 }
 
+async function createPendingPurchaseAction(formData: FormData) {
+  'use server'
+  const productSlug = String(formData.get('productSlug') ?? 'hermes-agent')
+  const platform = String(formData.get('platform') ?? 'WINDOWS')
+  const customerEmail = String(formData.get('customerEmail') ?? 'customer@example.com')
+  const customerName = String(formData.get('customerName') ?? 'AI Linker Customer')
+  const product = await import('@/lib/prisma').then(({ prisma }) => prisma.agentProduct.findUnique({ where: { slug: productSlug } }))
+  if (!product) throw new Error('상품을 찾을 수 없습니다.')
+  const { prisma } = await import('@/lib/prisma')
+  const user = await prisma.user.upsert({
+    where: { email: customerEmail.toLowerCase() },
+    update: { name: customerName },
+    create: { email: customerEmail.toLowerCase(), name: customerName, status: 'ACTIVE' },
+  })
+  const purchase = await prisma.purchase.create({
+    data: {
+      userId: user.id,
+      agentProductId: product.id,
+      platform: platform as never,
+      status: 'PENDING',
+      totalAmount: product.price,
+      currency: 'KRW',
+      payments: { create: { provider: 'manual-web', paymentKey: `manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, amount: product.price, currency: 'KRW', status: 'PENDING' } },
+    },
+  })
+  redirect(`/checkout?purchaseId=${purchase.id}`)
+}
+
+async function completePendingPurchaseAction(formData: FormData) {
+  'use server'
+  const purchaseId = String(formData.get('purchaseId') ?? '')
+  if (!purchaseId) throw new Error('주문 ID가 필요합니다.')
+  const { prisma } = await import('@/lib/prisma')
+  const { issueLicenseForPaidPurchase } = await import('@/lib/payment-processing')
+  const purchase = await prisma.purchase.findUnique({ where: { id: purchaseId }, include: { payments: { orderBy: { createdAt: 'desc' }, take: 1 } } })
+  if (!purchase) throw new Error('주문을 찾을 수 없습니다.')
+  await prisma.$transaction(async (tx) => {
+    await tx.purchase.update({ where: { id: purchaseId }, data: { status: 'PAID' } })
+    const latestPayment = purchase.payments[0]
+    if (latestPayment) {
+      await tx.payment.update({ where: { id: latestPayment.id }, data: { status: 'PAID', paidAt: new Date(), rawData: JSON.stringify({ source: 'checkout-server-action-dev', purchaseId }) } })
+    }
+    await issueLicenseForPaidPurchase(tx, purchaseId)
+  })
+  redirect(`/checkout?purchaseId=${purchaseId}`)
+}
+
 export default async function CheckoutPage({ searchParams }: CheckoutPageProps) {
   const params = await searchParams
   const platform = (params.platform ?? 'WINDOWS').toUpperCase()
-  const { product, release, latestPaidPurchase } = await getCheckoutSummary(params.product ?? 'hermes-agent', platform)
-  const installCode = latestPaidPurchase?.installCodes[0]
-  const payment = latestPaidPurchase?.payments[0]
+  const { product, release, purchase } = await getCheckoutSummary(params.product ?? 'hermes-agent', platform, params.purchaseId)
+  const installCode = purchase?.installCodes[0]
+  const payment = purchase?.payments[0]
   const productName = product?.name ?? 'Hermes AI Agent'
   const price = product?.price ?? 0
   const downloadUrl = release?.installerFile?.downloadUrl
@@ -80,17 +128,38 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
           <div className="mt-4 border-t border-border pt-4 space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">상태</span>
-              <span className="font-medium text-foreground">{latestPaidPurchase ? '결제 완료' : '결제 전 · 다운로드 가능'}</span>
+              <span className="font-medium text-foreground">{purchase ? (purchase.status === 'PAID' ? '결제 완료' : '결제 대기') : '결제 전 · 다운로드 가능'}</span>
             </div>
-            {latestPaidPurchase && (
+            {purchase && (
               <>
-                <div className="flex justify-between"><span className="text-muted-foreground">주문번호</span><span className="font-mono text-xs font-medium text-foreground">{latestPaidPurchase.id}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">주문번호</span><span className="font-mono text-xs font-medium text-foreground">{purchase.id}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">결제 방법</span><span className="font-medium text-foreground">{payment?.provider ?? 'manual'}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">결제 일시</span><span className="font-medium text-foreground">{formatDate(payment?.paidAt ?? latestPaidPurchase.updatedAt)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">결제 일시</span><span className="font-medium text-foreground">{formatDate(payment?.paidAt ?? purchase.updatedAt)}</span></div>
               </>
             )}
           </div>
         </div>
+
+        {!purchase && (
+          <form action={createPendingPurchaseAction} className="mb-5 rounded-2xl border border-border bg-card p-5">
+            <input type="hidden" name="productSlug" value={params.product ?? 'hermes-agent'} />
+            <input type="hidden" name="platform" value={platform} />
+            <input type="hidden" name="customerEmail" value="customer@example.com" />
+            <input type="hidden" name="customerName" value="김민준" />
+            <h2 className="mb-2 font-semibold text-foreground">구매 주문 만들기</h2>
+            <p className="mb-4 text-sm text-muted-foreground">실제 결제사 연동 전까지는 개발용 주문 생성 버튼으로 결제 대기 주문을 만들고, 이후 결제 완료 처리 흐름을 확인합니다.</p>
+            <Button className="w-full gap-2 bg-brand-navy text-white hover:bg-brand-navy/90"><CreditCard className="h-4 w-4" /> 결제 대기 주문 생성</Button>
+          </form>
+        )}
+
+        {purchase && purchase.status !== 'PAID' && (
+          <form action={completePendingPurchaseAction} className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+            <input type="hidden" name="purchaseId" value={purchase.id} />
+            <h2 className="font-bold text-amber-900">결제 대기 주문입니다</h2>
+            <p className="mt-1 text-sm text-amber-800/80">운영에서는 결제사 webhook이 이 단계를 처리합니다. 현재는 흐름 검증을 위해 수동 완료 버튼을 제공합니다.</p>
+            <Button className="mt-4 w-full gap-2 bg-brand-navy text-white hover:bg-brand-navy/90"><CheckCircle2 className="h-4 w-4" /> 개발용 결제 완료 처리</Button>
+          </form>
+        )}
 
         {installCode ? (
           <div className="mb-5 rounded-2xl border-2 border-brand-cyan/30 bg-brand-cyan-soft p-5">
