@@ -17,11 +17,11 @@ import {
 // ─── 설치 단계 ────────────────────────────────────────────────────────────────
 
 const steps = [
-  { n: 1, title: "결제", desc: "원하는 OS 버전을 선택하고 결제를 완료합니다." },
-  { n: 2, title: "설치코드 발급", desc: "결제 완료 즉시 라이선스 코드가 발급됩니다." },
-  { n: 3, title: "최신 설치파일 다운로드", desc: "My Page에서 최신 버전 설치파일을 다운로드합니다." },
-  { n: 4, title: "설치프로그램 실행", desc: "설치코드를 입력하고 프로그램을 설치합니다." },
-  { n: 5, title: "AI Linker 토큰 연결", desc: "토큰을 연결하면 AI 기능을 즉시 사용할 수 있습니다." },
+  { n: 1, title: "설치파일 다운로드", desc: "결제 전이라도 최신 설치파일을 먼저 받을 수 있습니다." },
+  { n: 2, title: "설치프로그램 실행", desc: "설치 프로그램이 웹과 연결해 최신 버전과 구매/검증 URL을 확인합니다." },
+  { n: 3, title: "LLM 연결 단계", desc: "실제 AI Linker LLM 서비스를 사용하려면 결제 또는 설치코드가 필요합니다." },
+  { n: 4, title: "설치코드 발급", desc: "결제 완료 즉시 웹에서 설치코드를 확인하고 복사할 수 있습니다." },
+  { n: 5, title: "토큰 연결", desc: "설치코드 활성화 후 토큰 잔액이 있으면 AI 기능을 즉시 사용할 수 있습니다." },
 ]
 
 // ─── 기본 기능 ────────────────────────────────────────────────────────────────
@@ -470,10 +470,12 @@ export default function AgentDetailPage() {
                 <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-brand-cyan" />일정 자동 등록 기능 강화</li>
                 <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-brand-cyan" />메신저 연결 안정성 개선</li>
               </ul>
-              <Button size="sm" disabled className="mt-4 gap-1.5 text-xs" variant="outline">
-                <Download className="h-3.5 w-3.5" />
-                구매 후 다운로드 가능
-              </Button>
+              <Link href="/api/releases/latest?productSlug=hermes-agent&platform=WINDOWS">
+                <Button size="sm" className="mt-4 gap-1.5 text-xs" variant="outline">
+                  <Download className="h-3.5 w-3.5" />
+                  최신 릴리즈 확인
+                </Button>
+              </Link>
             </div>
 
             {/* Tabs */}
@@ -578,8 +580,8 @@ export default function AgentDetailPage() {
 
               <div className="space-y-2 rounded-lg bg-muted/60 p-3 text-sm">
                 {[
-                  { icon: Key, label: "설치코드 즉시 발급" },
-                  { icon: Download, label: "최신 설치파일 다운로드" },
+                  { icon: Download, label: "결제 전 다운로드 가능" },
+                  { icon: Key, label: "LLM 연결 단계에서 코드 필요" },
                   { icon: Shield, label: "평생 라이선스 (1 디바이스)" },
                   { icon: Clock, label: "무료 업데이트 1년" },
                 ].map(({ icon: Icon, label }) => (
@@ -590,14 +592,16 @@ export default function AgentDetailPage() {
                 ))}
               </div>
 
-              <Link href="/checkout" className="block">
+              <Link href={`/checkout?product=hermes-agent&platform=${selectedOS === "iOS" ? "IOS" : "WINDOWS"}`} className="block">
                 <Button className="w-full gap-2 bg-brand-navy text-white font-bold hover:bg-brand-navy/90">
-                  <Key className="h-4 w-4" /> 구매하기
+                  <Key className="h-4 w-4" /> 서비스 활성화/코드 발급
                 </Button>
               </Link>
-              <Button variant="outline" className="w-full text-sm border-brand-navy text-brand-navy">
-                Skill 먼저 살펴보기
-              </Button>
+              <Link href="/api/installer/bootstrap?productSlug=hermes-agent&platform=WINDOWS" className="block">
+                <Button variant="outline" className="w-full text-sm border-brand-navy text-brand-navy">
+                  설치 연동 정보 확인
+                </Button>
+              </Link>
 
               {/* Skill summary */}
               <div
