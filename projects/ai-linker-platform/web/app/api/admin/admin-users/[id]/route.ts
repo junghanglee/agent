@@ -24,6 +24,8 @@ export async function PATCH(request: Request, { params }: Params) {
       select: { id: true, email: true, name: true, role: true, status: true, createdAt: true, updatedAt: true },
     })
     if (!before) return fail('관리자 계정을 찾을 수 없습니다.', 404)
+    if (before.role === 'SUPER_ADMIN' && parsed.data.role === 'ADMIN') return fail('슈퍼관리자 강등은 보안상 이 API에서 처리할 수 없습니다.', 400)
+    if (before.role === 'ADMIN' && parsed.data.role === 'SUPER_ADMIN') return fail('서브관리자 승격은 보안상 이 API에서 처리할 수 없습니다.', 400)
 
     const admin = await prisma.adminUser.update({
       where: { id },

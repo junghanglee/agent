@@ -33,6 +33,8 @@ export async function POST(request: Request) {
   if (!parsed.success) return validationFail(parsed.error)
 
   try {
+    if (parsed.data.role === 'SUPER_ADMIN') return fail('슈퍼관리자 추가는 보안상 직접 DB/운영 절차로만 처리합니다.', 400)
+
     const admin = await prisma.adminUser.create({
       data: {
         email: parsed.data.email.trim().toLowerCase(),

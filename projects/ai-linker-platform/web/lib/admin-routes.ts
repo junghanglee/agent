@@ -10,6 +10,7 @@ export const adminRoutePermissions: Record<string, AdminPermission> = {
   '/admin/tokens': 'TOKENS_READ',
   '/admin/llm-pool': 'LLM_POOL_READ',
   '/admin/monitoring': 'MONITORING_READ',
+  '/admin/audit': 'AUDIT_READ',
   '/admin/skills': 'SKILLS_MANAGE',
   '/admin/support': 'SUPPORT_MANAGE',
   '/admin/community': 'COMMUNITY_MANAGE',

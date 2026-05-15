@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { AdminUserCreateButton, AdminUserEditButton, AdminUserStatusButton } from '@/components/admin/admin-user-actions'
 import { requireAdminPagePermission } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
@@ -88,6 +89,9 @@ export default async function AdminUsersPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-center gap-1.5">
+                      <Link href={`/admin/audit?adminId=${admin.id}`} className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground">
+                        활동
+                      </Link>
                       <AdminUserEditButton admin={admin} />
                       <AdminUserStatusButton id={admin.id} status={admin.status} />
                     </div>

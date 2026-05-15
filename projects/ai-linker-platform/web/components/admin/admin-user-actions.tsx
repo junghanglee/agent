@@ -17,7 +17,6 @@ type AdminUserValue = {
 
 const roles = [
   { value: 'ADMIN', label: '서브관리자' },
-  { value: 'SUPER_ADMIN', label: '슈퍼관리자' },
 ]
 
 const statuses = [
@@ -35,6 +34,14 @@ export function AdminUserEditButton({ admin }: { admin: AdminUserValue }) {
 }
 
 export function AdminUserStatusButton({ id, status }: { id: string; status: string }) {
+  if (status === 'DELETED') {
+    return (
+      <button disabled className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground opacity-50">
+        <Power className="h-3 w-3" /> 삭제됨
+      </button>
+    )
+  }
+
   const action = status === 'ACTIVE' ? suspendAdminUserAction : activateAdminUserAction
   const label = status === 'ACTIVE' ? '정지' : '활성화'
 
