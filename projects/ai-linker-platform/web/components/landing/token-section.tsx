@@ -57,7 +57,7 @@ export function TokenSection() {
             <span className="text-brand-cyan">LLM 토큰 충전</span>
           </h2>
           <p className="mt-3 text-white/60">
-            더 많이, 더 오래 AI를 사용하세요. AI Linker의 토큰은 가장 저렴합니다.
+원하는 플랜을 선택해 충전요청을 남기면 관리자가 확인 후 처리합니다.
           </p>
         </div>
 
@@ -112,7 +112,7 @@ export function TokenSection() {
                       : "border border-white/20 bg-white/10 text-white hover:bg-white/20"
                   }`}
                 >
-                  충전하기
+충전요청
                 </Button>
               </Link>
             </div>
@@ -122,7 +122,7 @@ export function TokenSection() {
         <div className="mt-8 text-center">
           <Link href="/tokens">
             <Button variant="link" className="gap-1 text-brand-cyan hover:text-brand-cyan/80">
-              모든 토큰 플랜 비교하기
+충전요청 페이지로 이동
               <ArrowRight className="h-3.5 w-3.5" />
             </Button>
           </Link>

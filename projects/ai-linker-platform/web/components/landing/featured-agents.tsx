@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Bot, Star, ArrowRight, Monitor, Apple } from "lucide-react"
+import { Bot, Star, ArrowRight, Monitor, Apple, Download } from "lucide-react"
 
 const agents = [
   {
@@ -69,10 +69,10 @@ export function FeaturedAgents() {
         <div className="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <h2 className="text-balance text-3xl font-bold text-foreground md:text-4xl">
-              인기 AI Agent
+              다운로드 가능한 AI Agent
             </h2>
             <p className="mt-2 text-muted-foreground">
-              가장 많이 사용되는 Agent를 지금 바로 시작하세요.
+              소개를 확인하고 필요한 설치파일을 바로 다운로드하세요.
             </p>
           </div>
           <Link href="/agents">
@@ -138,8 +138,8 @@ export function FeaturedAgents() {
                 <div className="mt-auto flex items-center justify-between border-t border-border pt-3">
                   <span className="text-base font-bold text-foreground">{agent.price}</span>
                   <Link href="/agents/hermes">
-                    <Button size="sm" className="bg-brand-navy text-white hover:bg-brand-navy/90 text-xs">
-                      구매하기
+                    <Button size="sm" className="gap-1 bg-brand-navy text-white hover:bg-brand-navy/90 text-xs">
+                      다운로드 <Download className="h-3 w-3" />
                     </Button>
                   </Link>
                 </div>

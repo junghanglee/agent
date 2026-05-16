@@ -4,14 +4,14 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Menu, X, Zap } from "lucide-react"
+import { Menu, X, Download, Zap } from "lucide-react"
 import { AILinkerLogo } from "@/components/brand/ai-linker-logo"
 
 const navItems = [
-  { label: "Agent 마켓", href: "/agents" },
-  { label: "토큰 충전", href: "/tokens" },
-  { label: "커뮤니티", href: "/community" },
-  { label: "고객지원", href: "/support" },
+  { label: "서비스 소개", href: "/" },
+  { label: "다운로드", href: "/agents" },
+  { label: "토큰 충전요청", href: "/tokens" },
+  { label: "문의", href: "/support" },
 ]
 
 export function Header() {
@@ -33,108 +33,52 @@ export function Header() {
     : "bg-card/95 backdrop-blur-md border-b border-border"
 
   const logoVariant = isHome ? "light" : "dark"
-  const navColor = isHome
-    ? "text-white/70 hover:text-white"
-    : "text-muted-foreground hover:text-foreground"
-  const ctaGhostColor = isHome
-    ? "text-white/70 hover:text-white hover:bg-white/10"
-    : "text-muted-foreground hover:text-foreground"
+  const navColor = isHome ? "text-white/70 hover:text-white" : "text-muted-foreground hover:text-foreground"
 
   return (
-    <header
-      className={`fixed top-0 z-50 w-full transition-all duration-500 ${headerBase}`}
-    >
+    <header className={`fixed top-0 z-50 w-full transition-all duration-500 ${headerBase}`}>
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-10">
         <AILinkerLogo href="/" variant={logoVariant} size="md" priority />
 
-        {/* Desktop nav */}
         <nav className="hidden items-center gap-8 md:flex">
           {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`text-sm font-medium transition-colors ${navColor}`}
-            >
+            <Link key={item.href} href={item.href} className={`text-sm font-medium transition-colors ${navColor}`}>
               {item.label}
             </Link>
           ))}
         </nav>
 
-        {/* Desktop CTA */}
         <div className="hidden items-center gap-2 md:flex">
-          <Link href="/login">
-            <Button
-              variant="ghost"
-              size="sm"
-              className={`text-sm font-medium transition-colors ${ctaGhostColor}`}
-            >
-              로그인
+          <Link href="/agents">
+            <Button size="sm" className="gap-1.5 bg-brand-cyan text-brand-navy font-bold hover:bg-brand-cyan/90 px-5">
+              다운로드
+              <Download className="h-3.5 w-3.5" />
             </Button>
           </Link>
-          <Link href="/agents">
-            <Button
-              size="sm"
-              className="gap-1.5 bg-brand-cyan text-brand-navy font-bold hover:bg-brand-cyan/90 px-5"
-            >
-              시작하기
-              <Zap className="h-3.5 w-3.5" />
+          <Link href="/tokens">
+            <Button size="sm" variant="outline" className={isHome ? "border-white/20 bg-white/10 text-white hover:bg-white/20" : ""}>
+              충전요청
+              <Zap className="ml-1 h-3.5 w-3.5" />
             </Button>
           </Link>
         </div>
 
-        {/* Mobile toggle */}
-        <button
-          className="flex items-center md:hidden"
-          onClick={() => setMobileOpen((v) => !v)}
-          aria-label="메뉴 토글"
-        >
-          {mobileOpen ? (
-            <X className={`h-5 w-5 ${isHome ? "text-white" : "text-foreground"}`} />
-          ) : (
-            <Menu className={`h-5 w-5 ${isHome ? "text-white" : "text-foreground"}`} />
-          )}
+        <button className="flex items-center md:hidden" onClick={() => setMobileOpen((v) => !v)} aria-label="메뉴 열기">
+          {mobileOpen ? <X className={`h-5 w-5 ${isHome ? "text-white" : "text-foreground"}`} /> : <Menu className={`h-5 w-5 ${isHome ? "text-white" : "text-foreground"}`} />}
         </button>
       </div>
 
-      {/* Mobile menu */}
       {mobileOpen && (
-        <div
-          className={`border-t px-5 pb-5 pt-3 md:hidden ${
-            isHome
-              ? "border-white/10 bg-brand-navy/95 backdrop-blur-md"
-              : "border-border bg-card"
-          }`}
-        >
+        <div className={`border-t px-5 pb-5 pt-3 md:hidden ${isHome ? "border-white/10 bg-brand-navy/95 backdrop-blur-md" : "border-border bg-card"}`}>
           <nav className="flex flex-col gap-1">
             {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileOpen(false)}
-                className={`rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${
-                  isHome
-                    ? "text-white/70 hover:bg-white/10 hover:text-white"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
-              >
+              <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className={`rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${isHome ? "text-white/70 hover:bg-white/10 hover:text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
                 {item.label}
               </Link>
             ))}
-            <div className="mt-3 flex gap-2 border-t border-white/10 pt-4">
-              <Link href="/login" className="flex-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={`w-full ${isHome ? "border-white/20 bg-white/10 text-white hover:bg-white/20" : ""}`}
-                >
-                  로그인
-                </Button>
-              </Link>
-              <Link href="/agents" className="flex-1">
-                <Button size="sm" className="w-full bg-brand-cyan text-brand-navy font-bold">
-                  시작하기
-                </Button>
-              </Link>
+            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-white/10 pt-4">
+              <Link href="/agents"><Button size="sm" className="w-full bg-brand-cyan text-brand-navy font-bold">다운로드</Button></Link>
+              <Link href="/tokens"><Button size="sm" variant="outline" className={`w-full ${isHome ? "border-white/20 bg-white/10 text-white hover:bg-white/20" : ""}`}>충전요청</Button></Link>
             </div>
           </nav>
         </div>

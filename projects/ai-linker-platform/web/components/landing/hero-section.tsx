@@ -143,11 +143,10 @@ function RotatingKeyword() {
 
 // ─── Category Tab Bar (plani.co.kr bottom nav style) ──────────────────────
 const categories = [
-  { icon: Bot, label: "Agent 마켓", href: "/agents" },
-  { icon: Zap, label: "Skill 마켓", href: "/skills" },
-  { icon: Key, label: "토큰 충전", href: "/tokens" },
-  { icon: Download, label: "설치 가이드", href: "/guide" },
-  { icon: CheckCircle2, label: "커뮤니티", href: "/community" },
+  { icon: Bot, label: "서비스 소개", href: "/" },
+  { icon: Download, label: "다운로드", href: "/agents" },
+  { icon: Key, label: "토큰 충전요청", href: "/tokens" },
+  { icon: CheckCircle2, label: "설치 안내", href: "/agents/hermes" },
 ]
 
 // ─── Main ──────────────────────────────────────────────────────────────────
@@ -209,10 +208,10 @@ export function HeroSection() {
         </h1>
 
         <p className="mt-6 max-w-2xl text-lg leading-relaxed text-white/60 md:text-xl">
-          목적에 맞는 Agent를 고르고, 설치코드 한 번으로 설치한 뒤,{" "}
-          <span className="text-white/85 font-medium">AI Linker 전용 토큰</span>으로 바로 사용하세요.
+          회원가입 없이 서비스 소개를 확인하고, 설치파일을 다운로드한 뒤,{" "}
+          <span className="text-white/85 font-medium">AI Linker 토큰 충전요청</span>만 남기면 됩니다.
           <br className="hidden md:block" />
-          복잡한 설정 없이, 누구나 쉽게.
+          복잡한 계정 절차 없이, 누구나 쉽게.
         </p>
 
         {/* CTA buttons */}
@@ -222,7 +221,7 @@ export function HeroSection() {
               size="lg"
               className="gap-2 bg-brand-cyan px-8 py-6 text-base font-bold text-brand-navy shadow-lg shadow-brand-cyan/20 hover:bg-brand-cyan/90 hover:shadow-brand-cyan/30"
             >
-              내게 맞는 Agent 찾기
+              설치파일 다운로드
               <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
@@ -232,7 +231,7 @@ export function HeroSection() {
               variant="outline"
               className="gap-2 border-white/20 bg-white/8 px-8 py-6 text-base text-white backdrop-blur-sm hover:bg-white/15"
             >
-              토큰 요금 보기
+              충전요청 보기
             </Button>
           </Link>
         </div>
@@ -240,9 +239,9 @@ export function HeroSection() {
         {/* Trust badges */}
         <div className="mt-8 flex flex-wrap items-center justify-center gap-5 text-sm text-white/45">
           {[
-            { icon: CheckCircle2, text: "무료 체험 가능" },
-            { icon: CheckCircle2, text: "즉시 설치코드 발급" },
-            { icon: CheckCircle2, text: "시장가 대비 50% 저렴" },
+            { icon: CheckCircle2, text: "로그인 불필요" },
+            { icon: CheckCircle2, text: "다운로드 중심" },
+            { icon: CheckCircle2, text: "충전요청 수동 처리" },
           ].map((item) => (
             <span key={item.text} className="flex items-center gap-1.5">
               <item.icon className="h-4 w-4 text-brand-cyan/70" />
@@ -268,7 +267,7 @@ export function HeroSection() {
       {/* ─── Bottom category tab bar (plani.co.kr-style) ─── */}
       <div className="relative z-10 mt-10">
         <div className="mx-auto max-w-5xl px-5 md:px-10">
-          <div className="grid grid-cols-3 gap-px overflow-hidden rounded-t-2xl border border-b-0 border-white/10 bg-white/5 backdrop-blur-md md:grid-cols-5">
+          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-t-2xl border border-b-0 border-white/10 bg-white/5 backdrop-blur-md md:grid-cols-4">
             {categories.map((cat) => (
               <Link
                 key={cat.href}

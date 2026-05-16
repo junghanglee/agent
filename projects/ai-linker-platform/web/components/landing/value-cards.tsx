@@ -1,4 +1,4 @@
-import { Rocket, Key, Coins, Puzzle } from "lucide-react"
+import { Rocket, Download, Coins, MessageSquare } from "lucide-react"
 
 const values = [
   {
@@ -9,9 +9,9 @@ const values = [
     bg: "bg-brand-cyan-soft",
   },
   {
-    icon: Key,
-    title: "설치코드 제공",
-    desc: "구매 즉시 라이선스 코드가 발급됩니다. 코드 하나로 간편하게 인증.",
+    icon: Download,
+    title: "다운로드 중심",
+    desc: "회원가입 없이 소개를 보고 설치파일을 바로 받을 수 있습니다.",
     color: "text-brand-violet",
     bg: "bg-purple-50",
   },
@@ -23,9 +23,9 @@ const values = [
     bg: "bg-amber-50",
   },
   {
-    icon: Puzzle,
-    title: "Skill 업그레이드",
-    desc: "필요한 기능만 골라 Agent를 확장하세요. 수십 가지 Skill로 최적화.",
+    icon: MessageSquare,
+    title: "요청 기반 처리",
+    desc: "충전과 문의는 간단한 요청서로 남기고 관리자가 확인해 처리합니다.",
     color: "text-emerald-500",
     bg: "bg-emerald-50",
   },
