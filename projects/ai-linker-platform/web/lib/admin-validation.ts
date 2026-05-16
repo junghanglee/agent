@@ -11,6 +11,8 @@ export const creditAdjustmentTypeSchema = z.enum(['GRANT', 'DEDUCT'])
 export const walletStatusSchema = z.enum(['ACTIVE', 'SUSPENDED'])
 export const providerStatusSchema = z.enum(['ACTIVE', 'WARNING', 'CRITICAL', 'DISABLED'])
 export const paymentProviderEventStatusSchema = z.enum(['PENDING', 'PAID', 'FAILED', 'CANCELLED', 'REFUNDED'])
+export const ticketStatusSchema = z.enum(['OPEN', 'IN_PROGRESS', 'WAITING_CUSTOMER', 'CLOSED'])
+export const contentStatusSchema = z.enum(['DRAFT', 'PUBLISHED', 'HIDDEN', 'DELETED'])
 
 const stringArraySchema = z.array(z.string().trim().min(1)).default([])
 const installerFileSchema = z.object({
@@ -107,6 +109,26 @@ export const updatePaymentStatusSchema = z.object({
   paymentId: z.string().trim().min(1),
   status: z.enum(['FAILED', 'CANCELLED', 'REFUNDED']),
   reason: z.string().trim().min(2).max(500),
+})
+
+export const updateSupportTicketStatusSchema = z.object({
+  ticketId: z.string().trim().min(1),
+  status: ticketStatusSchema,
+})
+
+export const replySupportTicketSchema = z.object({
+  ticketId: z.string().trim().min(1),
+  message: z.string().trim().min(1).max(2000),
+})
+
+export const updateCommunityPostStatusSchema = z.object({
+  postId: z.string().trim().min(1),
+  status: contentStatusSchema,
+})
+
+export const updateCommunityCommentStatusSchema = z.object({
+  commentId: z.string().trim().min(1),
+  status: contentStatusSchema,
 })
 
 export const paymentProviderEventSchema = z.object({

@@ -1,132 +1,165 @@
-'use client'
-
-import { useState } from 'react'
+import { MessageSquare, UserCircle } from 'lucide-react'
 import { StatusBadge } from '@/components/admin/status-badge'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Search, MessageSquare, Send } from 'lucide-react'
+import { SupportReplyForm, SupportSearch, SupportStatusActions } from '@/components/admin/moderation-actions'
+import { requireAdminPagePermission } from '@/lib/admin-auth'
+import { formatDate } from '@/lib/admin-format'
+import { prisma } from '@/lib/prisma'
 
-const tickets = [
-  { id: 'TKT-581', customer: '정예준', email: 'yejun.jung@email.com', subject: '설치 오류 문의', priority: 'high', status: 'pending' as const, time: '23분 전', unread: 2 },
-  { id: 'TKT-580', customer: '윤하늘', email: 'haneul.yoon@email.com', subject: '결제 취소 요청', priority: 'medium', status: 'pending' as const, time: '1시간 전', unread: 1 },
-  { id: 'TKT-579', customer: '강지호', email: 'jiho.kang@email.com', subject: '토큰 잔액 오류', priority: 'high', status: 'pending' as const, time: '2시간 전', unread: 3 },
-  { id: 'TKT-578', customer: '조민서', email: 'minseo.jo@email.com', subject: '라이선스 이전 요청', priority: 'low', status: 'pending' as const, time: '3시간 전', unread: 0 },
-  { id: 'TKT-577', customer: '박도현', email: 'dohyun.park@email.com', subject: 'AI 응답 품질 문의', priority: 'medium', status: 'active' as const, time: '어제', unread: 0 },
-  { id: 'TKT-576', customer: '이서연', email: 'seoyeon.lee@email.com', subject: '구독 업그레이드 문의', priority: 'low', status: 'inactive' as const, time: '2일 전', unread: 0 },
-]
+export const dynamic = 'force-dynamic'
 
-const messages = [
-  { sender: 'customer', name: '정예준', text: '안녕하세요, AI Writer Pro 설치 중 오류가 발생합니다. 오류 코드: ERR_INSTALLER_FAILED', time: '10:23' },
-  { sender: 'admin', name: '관리자', text: '안녕하세요! 불편을 드려서 죄송합니다. 오류 코드를 확인했습니다. 현재 Windows Defender가 설치 파일을 차단하고 있을 수 있습니다. 잠시 해제 후 재시도해 보시겠어요?', time: '10:31' },
-  { sender: 'customer', name: '정예준', text: '해봤는데 동일한 오류가 발생합니다...', time: '10:45' },
-]
-
-const priorityLabel: Record<string, string> = { high: '높음', medium: '중간', low: '낮음' }
-const priorityClass: Record<string, string> = {
-  high: 'text-rose-600 bg-rose-50 border-rose-200',
-  medium: 'text-amber-600 bg-amber-50 border-amber-200',
-  low: 'text-sky-600 bg-sky-50 border-sky-200',
+type SupportPageProps = {
+  searchParams: Promise<{ q?: string; ticketId?: string; status?: string }>
 }
 
-export default function SupportPage() {
-  const [selectedTicket, setSelectedTicket] = useState(tickets[0])
-  const [search, setSearch] = useState('')
+const statusMap = {
+  OPEN: { badge: 'pending' as const, label: '접수' },
+  IN_PROGRESS: { badge: 'active' as const, label: '처리중' },
+  WAITING_CUSTOMER: { badge: 'warning' as const, label: '고객 대기' },
+  CLOSED: { badge: 'inactive' as const, label: '완료' },
+}
 
-  const filtered = tickets.filter(
-    (t) => t.customer.includes(search) || t.subject.includes(search) || t.id.includes(search)
-  )
+const senderLabel = {
+  USER: '고객',
+  ADMIN: '관리자',
+  SYSTEM: '시스템',
+}
+
+export default async function SupportPage({ searchParams }: SupportPageProps) {
+  await requireAdminPagePermission('SUPPORT_MANAGE')
+
+  const { q = '', ticketId = '', status = '' } = await searchParams
+  const query = q.trim()
+
+  const where = {
+    ...(status ? { status: status as never } : {}),
+    ...(query
+      ? {
+          OR: [
+            { id: { contains: query } },
+            { subject: { contains: query } },
+            { category: { contains: query } },
+            { user: { name: { contains: query } } },
+            { user: { email: { contains: query } } },
+          ],
+        }
+      : {}),
+  }
+
+  const [tickets, counts] = await Promise.all([
+    prisma.supportTicket.findMany({
+      where,
+      take: 100,
+      orderBy: { updatedAt: 'desc' },
+      include: {
+        user: { select: { name: true, email: true } },
+        assignedAdmin: { select: { name: true, email: true } },
+        messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+      },
+    }),
+    prisma.supportTicket.groupBy({ by: ['status'], _count: true }),
+  ])
+
+  const selectedTicketId = ticketId || tickets[0]?.id
+  const selectedTicket = selectedTicketId
+    ? await prisma.supportTicket.findUnique({
+        where: { id: selectedTicketId },
+        include: {
+          user: { select: { name: true, email: true } },
+          assignedAdmin: { select: { name: true, email: true } },
+          messages: { orderBy: { createdAt: 'asc' } },
+        },
+      })
+    : null
+
+  const countByStatus = Object.fromEntries(counts.map((item) => [item.status, item._count]))
+  const ticketOptions = tickets.map((ticket) => ({ id: ticket.id, label: `${ticket.user.name} · ${ticket.subject}` }))
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold text-foreground">상담 / 채팅</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">고객 상담 티켓 및 채팅 관리</p>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-foreground">상담 / 채팅</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">실제 고객 상담 티켓 및 채팅 관리</p>
+        </div>
+        <div className="flex flex-wrap gap-2 text-xs">
+          <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full font-medium">접수 {countByStatus.OPEN ?? 0}건</span>
+          <span className="bg-violet-50 text-violet-700 border border-violet-200 px-2.5 py-1 rounded-full font-medium">처리중 {countByStatus.IN_PROGRESS ?? 0}건</span>
+          <span className="bg-sky-50 text-sky-700 border border-sky-200 px-2.5 py-1 rounded-full font-medium">고객 대기 {countByStatus.WAITING_CUSTOMER ?? 0}건</span>
+        </div>
       </div>
 
-      <div className="flex gap-4 h-[calc(100vh-13rem)]">
-        {/* Ticket List */}
-        <div className="w-72 shrink-0 bg-card rounded-lg border border-border flex flex-col overflow-hidden">
-          <div className="p-3 border-b border-border">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <Input placeholder="검색..." className="pl-8 h-7 text-xs" value={search} onChange={(e) => setSearch(e.target.value)} />
-            </div>
-          </div>
+      <div className="flex gap-4 h-[calc(100vh-13rem)] min-h-[36rem]">
+        <div className="w-80 shrink-0 bg-card rounded-lg border border-border flex flex-col overflow-hidden">
+          <SupportSearch defaultValue={query} tickets={ticketOptions} />
           <div className="flex-1 overflow-y-auto">
-            {filtered.map((ticket) => (
-              <button
-                key={ticket.id}
-                onClick={() => setSelectedTicket(ticket)}
-                className={`w-full text-left px-3 py-3 border-b border-border/50 hover:bg-muted/40 transition-colors ${selectedTicket.id === ticket.id ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-semibold text-foreground truncate">{ticket.customer}</span>
-                      {ticket.unread > 0 && (
-                        <span className="shrink-0 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
-                          {ticket.unread}
-                        </span>
-                      )}
+            {tickets.map((ticket) => {
+              const config = statusMap[ticket.status]
+              return (
+                <a
+                  key={ticket.id}
+                  href={`/admin/support?ticketId=${ticket.id}${query ? `&q=${encodeURIComponent(query)}` : ''}${status ? `&status=${status}` : ''}`}
+                  className={`block text-left px-3 py-3 border-b border-border/50 hover:bg-muted/40 transition-colors ${selectedTicket?.id === ticket.id ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-semibold text-foreground truncate">{ticket.user.name}</span>
+                        <StatusBadge status={config.badge} customLabel={config.label} />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground truncate mt-1">{ticket.subject}</p>
+                      <p className="text-[10px] text-muted-foreground truncate mt-1">최근: {ticket.messages[0]?.message ?? '메시지 없음'}</p>
                     </div>
-                    <p className="text-[11px] text-muted-foreground truncate mt-0.5">{ticket.subject}</p>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${priorityClass[ticket.priority]}`}>
-                        {priorityLabel[ticket.priority]}
-                      </span>
-                      <StatusBadge status={ticket.status} />
-                    </div>
+                    <span className="text-[10px] text-muted-foreground shrink-0 mt-0.5">{formatDate(ticket.updatedAt)}</span>
                   </div>
-                  <span className="text-[10px] text-muted-foreground shrink-0 mt-0.5">{ticket.time}</span>
-                </div>
-              </button>
-            ))}
+                </a>
+              )
+            })}
+            {tickets.length === 0 && <div className="px-4 py-10 text-center text-sm text-muted-foreground">조건에 맞는 상담 티켓이 없습니다.</div>}
           </div>
         </div>
 
-        {/* Chat Panel */}
         <div className="flex-1 bg-card rounded-lg border border-border flex flex-col overflow-hidden">
-          {/* Chat Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-            <div>
-              <div className="flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-primary" />
-                <h3 className="text-sm font-semibold text-foreground">{selectedTicket.subject}</h3>
-                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${priorityClass[selectedTicket.priority]}`}>
-                  {priorityLabel[selectedTicket.priority]}
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">{selectedTicket.customer} · {selectedTicket.email} · {selectedTicket.id}</p>
-            </div>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" className="text-xs h-7">완료처리</Button>
-              <StatusBadge status={selectedTicket.status} />
-            </div>
-          </div>
-
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.sender === 'admin' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[70%] ${msg.sender === 'admin' ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
-                  <span className="text-[10px] text-muted-foreground px-1">{msg.name} · {msg.time}</span>
-                  <div className={`rounded-lg px-3 py-2.5 text-xs leading-relaxed ${msg.sender === 'admin' ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-muted text-foreground rounded-bl-sm'}`}>
-                    {msg.text}
+          {selectedTicket ? (
+            <>
+              <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-border">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-primary" />
+                    <h3 className="text-sm font-semibold text-foreground">{selectedTicket.subject}</h3>
+                    <StatusBadge status={statusMap[selectedTicket.status].badge} customLabel={statusMap[selectedTicket.status].label} />
                   </div>
+                  <p className="text-xs text-muted-foreground mt-1">{selectedTicket.user.name} · {selectedTicket.user.email} · {selectedTicket.id.slice(0, 12)}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">담당자: {selectedTicket.assignedAdmin?.name ?? '미배정'} · 카테고리: {selectedTicket.category}</p>
                 </div>
+                <SupportStatusActions ticketId={selectedTicket.id} />
               </div>
-            ))}
-          </div>
 
-          {/* Input */}
-          <div className="p-3 border-t border-border">
-            <div className="flex gap-2">
-              <Input placeholder="메시지를 입력하세요..." className="h-9 text-sm flex-1" />
-              <Button size="sm" className="h-9 px-3">
-                <Send className="w-3.5 h-3.5" />
-              </Button>
-            </div>
-          </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {selectedTicket.messages.map((message) => (
+                  <div key={message.id} className={`flex ${message.senderType === 'ADMIN' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[70%] ${message.senderType === 'ADMIN' ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
+                      <span className="text-[10px] text-muted-foreground px-1">{senderLabel[message.senderType]} · {formatDate(message.createdAt)}</span>
+                      <div className={`rounded-lg px-3 py-2.5 text-xs leading-relaxed ${message.senderType === 'ADMIN' ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-muted text-foreground rounded-bl-sm'}`}>
+                        {message.message}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {selectedTicket.messages.length === 0 && (
+                  <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-sm gap-2">
+                    <UserCircle className="w-8 h-8" />
+                    아직 메시지가 없습니다.
+                  </div>
+                )}
+              </div>
+
+              <div className="p-3 border-t border-border">
+                <SupportReplyForm ticketId={selectedTicket.id} disabled={selectedTicket.status === 'CLOSED'} />
+              </div>
+            </>
+          ) : (
+            <div className="h-full flex items-center justify-center text-sm text-muted-foreground">상담 티켓을 선택하세요.</div>
+          )}
         </div>
       </div>
     </div>

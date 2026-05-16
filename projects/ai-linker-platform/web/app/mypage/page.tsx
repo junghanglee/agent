@@ -236,7 +236,7 @@ export default async function MyPage({ searchParams }: MyPageProps) {
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-muted-foreground">#{ticket.id.slice(-6)}</span>
-                          <p className="font-semibold text-foreground">{ticket.title}</p>
+                          <p className="font-semibold text-foreground">{ticket.subject}</p>
                         </div>
                         <p className="text-xs text-muted-foreground">{formatDate(ticket.createdAt)}</p>
                       </div>

@@ -1,52 +1,107 @@
-'use client'
-
+import { CheckCircle, Flag, MessageCircle, Search, ThumbsUp } from 'lucide-react'
+import { CommunityCommentStatusButton, CommunityPostStatusButton } from '@/components/admin/moderation-actions'
 import { StatusBadge } from '@/components/admin/status-badge'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Search, Flag, CheckCircle, Trash2, ThumbsUp, MessageCircle } from 'lucide-react'
-import { useState } from 'react'
+import { requireAdminPagePermission } from '@/lib/admin-auth'
+import { formatDate } from '@/lib/admin-format'
+import { prisma } from '@/lib/prisma'
 
-const posts = [
-  { id: 'POST-201', author: '김민준', title: 'AI Writer Pro로 블로그 수익 3배 증가 후기', category: '후기', likes: 48, comments: 12, status: 'published' as const, date: '2025-01-12', reported: false },
-  { id: 'POST-200', author: '이서연', title: 'Sales Copilot 활용법 공유합니다', category: '팁', likes: 35, comments: 8, status: 'published' as const, date: '2025-01-11', reported: false },
-  { id: 'POST-199', author: '익명', title: '스팸 광고 글입니다', category: '기타', likes: 0, comments: 0, status: 'pending' as const, date: '2025-01-11', reported: true },
-  { id: 'POST-198', author: '박도현', title: '초보자도 따라할 수 있는 Data Analyst 가이드', category: '가이드', likes: 62, comments: 24, status: 'published' as const, date: '2025-01-10', reported: false },
-  { id: 'POST-197', author: '최수아', title: 'AI Agent 비교 분석', category: '분석', likes: 91, comments: 31, status: 'published' as const, date: '2025-01-09', reported: false },
-  { id: 'POST-196', author: '익명2', title: '부적절한 콘텐츠', category: '기타', likes: 1, comments: 0, status: 'pending' as const, date: '2025-01-08', reported: true },
-]
+export const dynamic = 'force-dynamic'
 
-export default function CommunityPage() {
-  const [search, setSearch] = useState('')
+type CommunityPageProps = {
+  searchParams: Promise<{ q?: string; status?: string }>
+}
 
-  const filtered = posts.filter(
-    (p) => p.title.includes(search) || p.author.includes(search) || p.category.includes(search)
-  )
+const statusMap = {
+  DRAFT: { badge: 'draft' as const, label: '초안' },
+  PUBLISHED: { badge: 'published' as const, label: '공개' },
+  HIDDEN: { badge: 'inactive' as const, label: '숨김' },
+  DELETED: { badge: 'suspended' as const, label: '삭제' },
+}
+
+export default async function CommunityPage({ searchParams }: CommunityPageProps) {
+  await requireAdminPagePermission('COMMUNITY_MANAGE')
+
+  const { q = '', status = '' } = await searchParams
+  const query = q.trim()
+
+  const postWhere = {
+    ...(status ? { status: status as never } : {}),
+    ...(query
+      ? {
+          OR: [
+            { title: { contains: query } },
+            { body: { contains: query } },
+            { user: { name: { contains: query } } },
+            { user: { email: { contains: query } } },
+            { agentProduct: { name: { contains: query } } },
+          ],
+        }
+      : {}),
+  }
+
+  const [posts, comments, postCounts, commentCounts] = await Promise.all([
+    prisma.communityPost.findMany({
+      where: postWhere,
+      take: 100,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: { select: { name: true, email: true } },
+        agentProduct: { select: { name: true } },
+        _count: { select: { comments: true } },
+      },
+    }),
+    prisma.communityComment.findMany({
+      where: query
+        ? {
+            OR: [
+              { body: { contains: query } },
+              { user: { name: { contains: query } } },
+              { user: { email: { contains: query } } },
+              { post: { title: { contains: query } } },
+            ],
+          }
+        : {},
+      take: 30,
+      orderBy: { createdAt: 'desc' },
+      include: { user: { select: { name: true, email: true } }, post: { select: { title: true } } },
+    }),
+    prisma.communityPost.groupBy({ by: ['status'], _count: true }),
+    prisma.communityComment.groupBy({ by: ['status'], _count: true }),
+  ])
+
+  const postCountByStatus = Object.fromEntries(postCounts.map((item) => [item.status, item._count]))
+  const commentCountByStatus = Object.fromEntries(commentCounts.map((item) => [item.status, item._count]))
+  const needsReview = (postCountByStatus.DRAFT ?? 0) + (postCountByStatus.HIDDEN ?? 0) + (commentCountByStatus.HIDDEN ?? 0)
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-foreground">커뮤니티 관리</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">게시글 및 댓글 모더레이션</p>
+          <p className="text-sm text-muted-foreground mt-0.5">실제 게시글 및 댓글 모더레이션</p>
         </div>
-        <div className="flex gap-2 text-xs">
-          <span className="bg-rose-50 text-rose-700 border border-rose-200 px-2.5 py-1 rounded-full font-medium">신고 {posts.filter(p => p.reported).length}건</span>
-          <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full font-medium">승인 대기 {posts.filter(p => p.status === 'pending').length}건</span>
+        <div className="flex flex-wrap gap-2 text-xs">
+          <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full font-medium">공개 {postCountByStatus.PUBLISHED ?? 0}건</span>
+          <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full font-medium">검토 {needsReview}건</span>
+          <span className="bg-gray-50 text-gray-700 border border-gray-200 px-2.5 py-1 rounded-full font-medium">댓글 {comments.length}건 표시</span>
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <form className="flex items-center gap-2">
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-          <Input placeholder="제목, 작성자 검색..." className="pl-9 h-8 text-sm" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input name="q" placeholder="제목, 작성자 검색..." className="pl-9 h-8 text-sm" defaultValue={query} />
         </div>
-        <select className="h-8 bg-background border border-border rounded-md px-3 text-xs focus:outline-none focus:ring-1 focus:ring-primary">
-          <option>전체</option>
-          <option>공개</option>
-          <option>대기중</option>
-          <option>신고됨</option>
+        <select name="status" defaultValue={status} className="h-8 bg-background border border-border rounded-md px-3 text-xs focus:outline-none focus:ring-1 focus:ring-primary">
+          <option value="">전체 상태</option>
+          <option value="PUBLISHED">공개</option>
+          <option value="DRAFT">초안</option>
+          <option value="HIDDEN">숨김</option>
+          <option value="DELETED">삭제</option>
         </select>
-      </div>
+        <button className="h-8 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-muted" type="submit">검색</button>
+      </form>
 
       <div className="bg-card rounded-lg border border-border overflow-hidden">
         <div className="overflow-x-auto">
@@ -55,7 +110,7 @@ export default function CommunityPage() {
               <tr className="border-b border-border bg-muted/40">
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">제목</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">작성자</th>
-                <th className="text-center px-4 py-3 font-medium text-muted-foreground">카테고리</th>
+                <th className="text-center px-4 py-3 font-medium text-muted-foreground">상품</th>
                 <th className="text-center px-4 py-3 font-medium text-muted-foreground">좋아요</th>
                 <th className="text-center px-4 py-3 font-medium text-muted-foreground">댓글</th>
                 <th className="text-center px-4 py-3 font-medium text-muted-foreground">상태</th>
@@ -64,48 +119,72 @@ export default function CommunityPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((post) => (
-                <tr key={post.id} className={`border-b border-border/50 hover:bg-muted/30 transition-colors ${post.reported ? 'bg-rose-50/40' : ''}`}>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1.5">
-                      {post.reported && <Flag className="w-3 h-3 text-rose-500 shrink-0" />}
-                      <span className="font-medium truncate max-w-[220px]">{post.title}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{post.author}</td>
-                  <td className="px-4 py-3 text-center">
-                    <span className="bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px]">{post.category}</span>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <div className="flex items-center justify-center gap-1 text-muted-foreground">
-                      <ThumbsUp className="w-3 h-3" />
-                      {post.likes}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <div className="flex items-center justify-center gap-1 text-muted-foreground">
-                      <MessageCircle className="w-3 h-3" />
-                      {post.comments}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-center"><StatusBadge status={post.status} /></td>
-                  <td className="px-4 py-3 text-muted-foreground">{post.date}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-center gap-1">
-                      {post.status === 'pending' && (
-                        <button className="p-1.5 rounded hover:bg-emerald-50 transition-colors text-emerald-600" title="승인">
-                          <CheckCircle className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                      <button className="p-1.5 rounded hover:bg-rose-50 transition-colors text-rose-500" title="삭제">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {posts.map((post) => {
+                const flagged = post.status === 'HIDDEN' || post.status === 'DRAFT'
+                return (
+                  <tr key={post.id} className={`border-b border-border/50 hover:bg-muted/30 transition-colors ${flagged ? 'bg-amber-50/30' : ''}`}>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        {flagged && <Flag className="w-3 h-3 text-amber-500 shrink-0" />}
+                        <span className="font-medium truncate max-w-[260px]">{post.title}</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground truncate max-w-[320px] mt-1">{post.body}</p>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      <p>{post.user.name}</p>
+                      <p className="font-mono text-[10px]">{post.user.email}</p>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px]">{post.agentProduct?.name ?? '일반'}</span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex items-center justify-center gap-1 text-muted-foreground"><ThumbsUp className="w-3 h-3" />0</div>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex items-center justify-center gap-1 text-muted-foreground"><MessageCircle className="w-3 h-3" />{post._count.comments}</div>
+                    </td>
+                    <td className="px-4 py-3 text-center"><StatusBadge status={statusMap[post.status].badge} customLabel={statusMap[post.status].label} /></td>
+                    <td className="px-4 py-3 text-muted-foreground">{formatDate(post.createdAt)}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-1">
+                        {post.status !== 'PUBLISHED' && <CommunityPostStatusButton postId={post.id} status="PUBLISHED" label="공개" />}
+                        {post.status !== 'HIDDEN' && <CommunityPostStatusButton postId={post.id} status="HIDDEN" label="숨김" />}
+                        {post.status !== 'DELETED' && <CommunityPostStatusButton postId={post.id} status="DELETED" label="삭제" />}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+              {posts.length === 0 && (
+                <tr><td colSpan={8} className="px-4 py-10 text-center text-sm text-muted-foreground">조건에 맞는 게시글이 없습니다.</td></tr>
+              )}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <div className="bg-card rounded-lg border border-border overflow-hidden">
+        <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+          <CheckCircle className="w-4 h-4 text-primary" />
+          <h2 className="text-sm font-semibold">최근 댓글 관리</h2>
+        </div>
+        <div className="divide-y divide-border/60">
+          {comments.map((comment) => (
+            <div key={comment.id} className="flex items-start justify-between gap-4 px-4 py-3 text-xs">
+              <div className="min-w-0">
+                <p className="font-medium text-foreground truncate">{comment.post.title}</p>
+                <p className="text-muted-foreground mt-1">{comment.body}</p>
+                <p className="text-[11px] text-muted-foreground mt-1">{comment.user.name} · {comment.user.email} · {formatDate(comment.createdAt)}</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <StatusBadge status={statusMap[comment.status].badge} customLabel={statusMap[comment.status].label} />
+                {comment.status !== 'PUBLISHED' && <CommunityCommentStatusButton commentId={comment.id} status="PUBLISHED" label="댓글 공개" />}
+                {comment.status !== 'HIDDEN' && <CommunityCommentStatusButton commentId={comment.id} status="HIDDEN" label="댓글 숨김" />}
+                {comment.status !== 'DELETED' && <CommunityCommentStatusButton commentId={comment.id} status="DELETED" label="댓글 삭제" />}
+              </div>
+            </div>
+          ))}
+          {comments.length === 0 && <div className="px-4 py-8 text-center text-sm text-muted-foreground">표시할 댓글이 없습니다.</div>}
         </div>
       </div>
     </div>
