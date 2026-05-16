@@ -62,7 +62,11 @@ export async function getDemoCustomerWorkspace(email = 'customer@example.com') {
           installCodes: { include: { license: { include: { deviceActivations: true } } }, orderBy: { createdAt: 'desc' } },
         },
       },
-      supportTickets: { orderBy: { createdAt: 'desc' }, take: 10 },
+      supportTickets: {
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        include: { messages: { orderBy: { createdAt: 'desc' }, take: 1 } },
+      },
     },
   })
   const latestReleases = await prisma.agentRelease.findMany({
@@ -70,4 +74,38 @@ export async function getDemoCustomerWorkspace(email = 'customer@example.com') {
     include: { installerFile: true, agentProduct: true },
   })
   return { user, latestReleases }
+}
+
+export async function getSupportPageData(email = 'customer@example.com') {
+  const [workspace, products] = await Promise.all([
+    getDemoCustomerWorkspace(email),
+    prisma.agentProduct.findMany({ where: { status: 'ACTIVE' }, orderBy: { createdAt: 'desc' }, select: { id: true, name: true } }),
+  ])
+
+  return { ...workspace, products }
+}
+
+export async function getCommunityPageData() {
+  const [posts, products, postCount, userCount, commentCount] = await Promise.all([
+    prisma.communityPost.findMany({
+      where: { status: 'PUBLISHED' },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      include: {
+        user: { select: { name: true, email: true, role: true } },
+        agentProduct: { select: { id: true, name: true, category: true } },
+        comments: {
+          where: { status: 'PUBLISHED' },
+          orderBy: { createdAt: 'asc' },
+          include: { user: { select: { name: true, email: true, role: true } } },
+        },
+      },
+    }),
+    prisma.agentProduct.findMany({ where: { status: 'ACTIVE' }, orderBy: { createdAt: 'desc' }, select: { id: true, name: true, category: true } }),
+    prisma.communityPost.count({ where: { status: 'PUBLISHED' } }),
+    prisma.user.count({ where: { status: 'ACTIVE' } }),
+    prisma.communityComment.count({ where: { status: 'PUBLISHED' } }),
+  ])
+
+  return { posts, products, postCount, userCount, commentCount }
 }
